@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<openerp>
+    <data>
+        <!--OMIE OFERTA BLOQUE-->
+        <record model="ir.ui.view" id="giscedata_omie_oferta_bloque_tree">
+            <field name="name">giscedata.omie.oferta.bloque.tree</field>
+            <field name="model">giscedata.omie.oferta.bloque</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Bloque de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                    <field name="div"/>
+                    <field name="ret"/>
+                    <field name="Per"/>
+                    <field name="ctn"/>
+                    <field name="prc"/>
+                    <field name="oferta_id"/>
+			    </tree>
+            </field>
+        </record>
+        <record model="ir.ui.view" id="giscedata_omie_oferta_bloque_form">
+            <field name="name">giscedata.omie.oferta.bloque.form</field>
+            <field name="model">giscedata.omie.oferta.bloque</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Bloque de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                    <field name="div"/>
+                    <field name="ret"/>
+                    <field name="Per"/>
+                    <field name="ctn"/>
+                    <field name="prc"/>
+                    <field name="oferta_id"/>
+                </form>
+            </field>
+        </record>
+        <!--FIN OMIE OFERTA BLOQUE-->
+        <!--OMIE OFERTA PETICIÓN-->
+        <record model="ir.ui.view" id="giscedata_omie_oferta_peticion_tree">
+            <field name="name">giscedata.omie.oferta.peticion.tree</field>
+            <field name="model">giscedata.omie.oferta.peticion</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Petición de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                    <field name="id_mensaje"/>
+                    <field name="fecha_mensaje"/>
+                    <field name="id_remitente"/>
+                    <field name="id_mensaje_origen"/>
+                    <field name="ver_mensaje_origen"/>
+                    <field name="id_remitente_origen"/>
+                    <field name="codigo_respuesta"/>
+                    <field name="texto_respuesta"/>
+                    <field name="num_ofertas_procesadas"/>
+                    <field name="num_ofertas_correctas"/>
+                    <field name="oferta_id"/>
+                    <field name="cod_transaccion"/>
+                    <field name="ver_transaccion"/>
+			    </tree>
+            </field>
+        </record>
+        <record model="ir.ui.view" id="giscedata_omie_oferta_peticion_form">
+            <field name="name">giscedata.omie.oferta.peticion.form</field>
+            <field name="model">giscedata.omie.oferta.peticion</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Petición de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                    <field name="id_mensaje"/>
+                    <field name="fecha_mensaje"/>
+                    <field name="id_remitente"/>
+                    <field name="id_mensaje_origen"/>
+                    <field name="ver_mensaje_origen"/>
+                    <field name="id_remitente_origen"/>
+                    <field name="codigo_respuesta"/>
+                    <field name="texto_respuesta"/>
+                    <field name="num_ofertas_procesadas"/>
+                    <field name="num_ofertas_correctas"/>
+                    <field name="oferta_id"/>
+                    <field name="cod_transaccion"/>
+                    <field name="ver_transaccion"/>
+                </form>
+            </field>
+        </record>
+        <record model="ir.actions.act_window" id="action_listar_peticiones_ofertas">
+            <field name="name">Peticiones de Ofertas de OMIE</field>
+            <field name="res_model">giscedata.omie.oferta.peticion</field>
+            <field name="src_model">giscedata.omie.oferta.peticion</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+        <menuitem name="Peticiones de Ofertas de OMIE" id="listado_peticiones_ofertas" action="action_listar_peticiones_ofertas"/>
+        <!--FIN OMIE OFERTA PETICIÓN-->
+        <!--OMIE OFERTA-->
+        <record model="ir.ui.view" id="giscedata_omie_oferta_tree">
+            <field name="name">giscedata.omie.oferta.tree</field>
+            <field name="model">giscedata.omie.oferta</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                    <field name="id_mensaje"/>
+                    <field name="ver_mensaje"/>
+                    <field name="fecha_mensaje"/>
+                    <field name="id_remitente"/>
+                    <field name="id_oferta"/>
+                    <field name="id_unidad"/>
+                    <field name="cod_min_unidad"/>
+                    <field name="area_unidad"/>
+                    <field name="tipo_unidad"/>
+                    <field name="tipo_mercado"/>
+                    <field name="fecha_sesion"/>
+                    <field name="ind_defecto"/>
+                    <field name="clase_oferta"/>
+                    <field name="termino_fijo"/>
+                    <field name="termino_variable"/>
+                    <field name="parada"/>
+                    <field name="arranque"/>
+                    <field name="bajada"/>
+                    <field name="subida"/>
+                    <field name="uni_energia"/>
+                    <field name="uni_monetaria"/>
+                    <field name="uni_precio"/>
+                    <field name="comentario_oferta"/>
+                    <field name="bloque_ids"/>
+                    <field name="peticion_ids"/>
+
+			    </tree>
+            </field>
+        </record>
+        <record model="ir.ui.view" id="giscedata_omie_oferta_form">
+            <field name="name">giscedata.omie.oferta.form</field>
+            <field name="model">giscedata.omie.oferta</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                    <field name="id_mensaje"/>
+                    <field name="ver_mensaje"/>
+                    <field name="fecha_mensaje"/>
+                    <field name="id_remitente"/>
+                    <field name="id_oferta"/>
+                    <field name="id_unidad"/>
+                    <field name="cod_min_unidad"/>
+                    <field name="area_unidad"/>
+                    <field name="tipo_unidad"/>
+                    <field name="tipo_mercado"/>
+                    <field name="fecha_sesion"/>
+                    <field name="ind_defecto"/>
+                    <field name="clase_oferta"/>
+                    <field name="termino_fijo"/>
+                    <field name="termino_variable"/>
+                    <field name="parada"/>
+                    <field name="arranque"/>
+                    <field name="bajada"/>
+                    <field name="subida"/>
+                    <field name="uni_energia"/>
+                    <field name="uni_monetaria"/>
+                    <field name="uni_precio"/>
+                    <field name="comentario_oferta"/>
+                    <field name="bloque_ids"/>
+                </form>
+            </field>
+        </record>
+
+        <record model="ir.actions.act_window" id="action_listar_ofertas">
+            <field name="name">Ofertas de OMIE</field>
+            <field name="res_model">giscedata.omie.oferta</field>
+            <field name="src_model">giscedata.omie.oferta</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+        <menuitem name="Ofertas de OMIE" id="listado_ofertas" action="action_listar_ofertas"/>
+        <!--FIN OMIE OFERTA-->
+        <!--OMIE OFERTA CONSULTA-->
+        <record model="ir.ui.view" id="giscedata_omie_oferta_consulta_tree">
+            <field name="name">giscedata.omie.oferta.consulta.tree</field>
+            <field name="model">giscedata.omie.oferta.consulta</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Consulta de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                    <field name="codigo"/>
+                    <field name="version"/>
+			    </tree>
+            </field>
+        </record>
+        <record model="ir.ui.view" id="giscedata_omie_oferta_consulta_form">
+            <field name="name">giscedata.omie.oferta.consulta.form</field>
+            <field name="model">giscedata.omie.oferta.consulta</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Consulta de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                    <field name="codigo"/>
+                    <field name="version"/>
+                </form>
+            </field>
+        </record>
+        <!--FIN OMIE OFERTA CONSULTA-->
+    </data>
+</openerp>

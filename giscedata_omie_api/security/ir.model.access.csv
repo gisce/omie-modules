@@ -1,0 +1,13 @@
+"id","name","model_id:id","group_id:id","perm_read","perm_write","perm_create","perm_unlink"
+"access_giscedata_omie_oferta_r","giscedata.omie.oferta","model_giscedata_omie_oferta","giscedata_polissa.group_giscedata_polissa_r",1,0,0,0
+"access_giscedata_omie_oferta_w","giscedata.omie.oferta","model_giscedata_omie_oferta","giscedata_polissa.group_giscedata_polissa_w",1,1,1,0
+"access_giscedata_omie_oferta_u","giscedata.omie.oferta","model_giscedata_omie_oferta","giscedata_polissa.group_giscedata_polissa_u",1,1,1,1
+"access_giscedata_omie_oferta_consulta_r","giscedata.omie.oferta.consulta","model_giscedata_omie_oferta_consulta","giscedata_polissa.group_giscedata_polissa_r",1,0,0,0
+"access_giscedata_omie_oferta_consulta_w","giscedata.omie.oferta.consulta","model_giscedata_omie_oferta_consulta","giscedata_polissa.group_giscedata_polissa_w",1,1,1,0
+"access_giscedata_omie_oferta_consulta_u","giscedata.omie.oferta.consulta","model_giscedata_omie_oferta_consulta","giscedata_polissa.group_giscedata_polissa_u",1,1,1,1
+"access_giscedata_omie_oferta_bloque_r","giscedata.omie.oferta.bloque","model_giscedata_omie_oferta_bloque","giscedata_polissa.group_giscedata_polissa_r",1,0,0,0
+"access_giscedata_omie_oferta_bloque_w","giscedata.omie.oferta.bloque","model_giscedata_omie_oferta_bloque","giscedata_polissa.group_giscedata_polissa_w",1,1,1,0
+"access_giscedata_omie_oferta_bloque_u","giscedata.omie.oferta.bloque","model_giscedata_omie_oferta_bloque","giscedata_polissa.group_giscedata_polissa_u",1,1,1,1
+"access_giscedata_omie_oferta_peticion_r","giscedata.omie.oferta.peticion","model_giscedata_omie_oferta_peticion","giscedata_polissa.group_giscedata_polissa_r",1,0,0,0
+"access_giscedata_omie_oferta_peticion_w","giscedata.omie.oferta.peticion","model_giscedata_omie_oferta_peticion","giscedata_polissa.group_giscedata_polissa_w",1,1,1,0
+"access_giscedata_omie_oferta_peticion_u","giscedata.omie.oferta.peticion","model_giscedata_omie_oferta_peticion","giscedata_polissa.group_giscedata_polissa_u",1,1,1,1
