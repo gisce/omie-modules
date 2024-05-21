@@ -10,7 +10,7 @@
                 <tree string="Bloque de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
                     <field name="div"/>
                     <field name="ret"/>
-                    <field name="Per"/>
+                    <field name="per"/>
                     <field name="ctn"/>
                     <field name="prc"/>
                     <field name="oferta_id"/>
@@ -25,10 +25,9 @@
                 <form string="Bloque de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
                     <field name="div"/>
                     <field name="ret"/>
-                    <field name="Per"/>
+                    <field name="per"/>
                     <field name="ctn"/>
                     <field name="prc"/>
-                    <field name="oferta_id"/>
                 </form>
             </field>
         </record>
@@ -109,17 +108,16 @@
                     <field name="clase_oferta"/>
                     <field name="termino_fijo"/>
                     <field name="termino_variable"/>
-                    <field name="parada"/>
-                    <field name="arranque"/>
-                    <field name="bajada"/>
-                    <field name="subida"/>
+                    <field name="grad_parada"/>
+                    <field name="grad_arranque"/>
+                    <field name="grad_bajada"/>
+                    <field name="grad_subida"/>
                     <field name="uni_energia"/>
                     <field name="uni_monetaria"/>
                     <field name="uni_precio"/>
                     <field name="comentario_oferta"/>
-                    <field name="bloque_ids"/>
+                    <field name="bloque_ids" nolabel="1"/>
                     <field name="peticion_ids"/>
-
 			    </tree>
             </field>
         </record>
@@ -144,15 +142,16 @@
                     <field name="clase_oferta"/>
                     <field name="termino_fijo"/>
                     <field name="termino_variable"/>
-                    <field name="parada"/>
-                    <field name="arranque"/>
-                    <field name="bajada"/>
-                    <field name="subida"/>
+                    <field name="grad_parada"/>
+                    <field name="grad_arranque"/>
+                    <field name="grad_bajada"/>
+                    <field name="grad_subida"/>
                     <field name="uni_energia"/>
                     <field name="uni_monetaria"/>
                     <field name="uni_precio"/>
                     <field name="comentario_oferta"/>
-                    <field name="bloque_ids"/>
+                    <field name="bloque_ids" nolabel="1"/>
+                    <button string="Enviar Oferta" name="enviar_oferta" type="object" primary="1" icon="send" colspan="4"/>
                 </form>
             </field>
         </record>
