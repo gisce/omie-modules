@@ -8,9 +8,9 @@
             <field name="type">tree</field>
             <field name="arch" type="xml">
                 <tree string="Bloque de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                    <field name="per"/>
                     <field name="div"/>
                     <field name="ret"/>
-                    <field name="per"/>
                     <field name="ctn"/>
                     <field name="prc"/>
                     <field name="oferta_id"/>
@@ -23,19 +23,21 @@
             <field name="type">form</field>
             <field name="arch" type="xml">
                 <form string="Bloque de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
-                    <field name="div"/>
-                    <field name="ret"/>
-                    <field name="per"/>
-                    <field name="ctn"/>
-                    <field name="prc"/>
+                    <group colspan="8">
+                        <field name="per" colspan="8"/>
+                        <field name="ctn" colspan="8"/>
+                        <field name="prc" colspan="8"/>
+                        <field name="div" colspan="8"/>
+                        <field name="ret" colspan="8"/>
+                    </group>
                 </form>
             </field>
         </record>
         <!--FIN OMIE OFERTA BLOQUE-->
         <!--OMIE OFERTA PETICIÓN-->
-        <record model="ir.ui.view" id="giscedata_omie_oferta_peticion_tree">
-            <field name="name">giscedata.omie.oferta.peticion.tree</field>
-            <field name="model">giscedata.omie.oferta.peticion</field>
+        <record model="ir.ui.view" id="giscedata_omie_oferta_respuesta_tree">
+            <field name="name">giscedata.omie.oferta.respuesta.tree</field>
+            <field name="model">giscedata.omie.oferta.respuesta</field>
             <field name="type">tree</field>
             <field name="arch" type="xml">
                 <tree string="Petición de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
@@ -55,9 +57,9 @@
 			    </tree>
             </field>
         </record>
-        <record model="ir.ui.view" id="giscedata_omie_oferta_peticion_form">
-            <field name="name">giscedata.omie.oferta.peticion.form</field>
-            <field name="model">giscedata.omie.oferta.peticion</field>
+        <record model="ir.ui.view" id="giscedata_omie_oferta_respuesta_form">
+            <field name="name">giscedata.omie.oferta.respuesta.form</field>
+            <field name="model">giscedata.omie.oferta.respuesta</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
                 <form string="Petición de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
@@ -77,14 +79,14 @@
                 </form>
             </field>
         </record>
-        <record model="ir.actions.act_window" id="action_listar_peticiones_ofertas">
-            <field name="name">Peticiones de Ofertas de OMIE</field>
-            <field name="res_model">giscedata.omie.oferta.peticion</field>
-            <field name="src_model">giscedata.omie.oferta.peticion</field>
+        <record model="ir.actions.act_window" id="action_listar_respuestas_ofertas">
+            <field name="name">Respuestas de Peticiones de Ofertas de OMIE</field>
+            <field name="res_model">giscedata.omie.oferta.respuesta</field>
+            <field name="src_model">giscedata.omie.oferta.respuesta</field>
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
         </record>
-        <menuitem name="Peticiones de Ofertas de OMIE" id="listado_peticiones_ofertas" action="action_listar_peticiones_ofertas"/>
+        <menuitem name="Respuestas de Peticiones de Ofertas de OMIE" id="listado_respuestas_ofertas" action="action_listar_respuestas_ofertas"/>
         <!--FIN OMIE OFERTA PETICIÓN-->
         <!--OMIE OFERTA-->
         <record model="ir.ui.view" id="giscedata_omie_oferta_tree">
@@ -93,6 +95,7 @@
             <field name="type">tree</field>
             <field name="arch" type="xml">
                 <tree string="Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                    <field name="state"/>
                     <field name="id_mensaje"/>
                     <field name="ver_mensaje"/>
                     <field name="fecha_mensaje"/>
@@ -117,7 +120,7 @@
                     <field name="uni_precio"/>
                     <field name="comentario_oferta"/>
                     <field name="bloque_ids" nolabel="1"/>
-                    <field name="peticion_ids"/>
+                    <field name="respuesta_ids"/>
 			    </tree>
             </field>
         </record>
@@ -127,31 +130,42 @@
             <field name="type">form</field>
             <field name="arch" type="xml">
                 <form string="Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
-                    <field name="id_mensaje"/>
-                    <field name="ver_mensaje"/>
-                    <field name="fecha_mensaje"/>
-                    <field name="id_remitente"/>
-                    <field name="id_oferta"/>
-                    <field name="id_unidad"/>
-                    <field name="cod_min_unidad"/>
-                    <field name="area_unidad"/>
-                    <field name="tipo_unidad"/>
-                    <field name="tipo_mercado"/>
-                    <field name="fecha_sesion"/>
-                    <field name="ind_defecto"/>
-                    <field name="clase_oferta"/>
-                    <field name="termino_fijo"/>
-                    <field name="termino_variable"/>
-                    <field name="grad_parada"/>
-                    <field name="grad_arranque"/>
-                    <field name="grad_bajada"/>
-                    <field name="grad_subida"/>
-                    <field name="uni_energia"/>
-                    <field name="uni_monetaria"/>
-                    <field name="uni_precio"/>
-                    <field name="comentario_oferta"/>
-                    <field name="bloque_ids" nolabel="1"/>
-                    <button string="Enviar Oferta" name="enviar_oferta" type="object" primary="1" icon="send" colspan="4"/>
+                    <group string="Mensaje" icon="message" colspan="4" attrs="{'readonly':[('state','=','enviada')]}">
+                        <field name="id_mensaje"/>
+                        <field name="ver_mensaje"/>
+                        <field name="id_remitente"/>
+                        <field name="fecha_mensaje" colspan="2" attrs="{'invisible':[('state','=','no_enviada')]}"/>
+                    </group>
+                    <group string="Información Oferta" icon="file-info" colspan="2" attrs="{'readonly':[('state','=','enviada')]}">
+                        <field name="id_oferta" colspan="2"/>
+                        <field name="clase_oferta" colspan="2"/>
+                        <field name="comentario_oferta" colspan="2"/>
+                    </group>
+                    <group string="Información Unidad" icon="info-circle" colspan="2" attrs="{'readonly':[('state','=','enviada')]}">
+                        <field name="id_unidad"/>
+                        <field name="cod_min_unidad"/>
+                        <field name="area_unidad"/>
+                        <field name="tipo_unidad"/>
+                    </group>
+                    <group string="Validez" icon="calendar-check" colspan="2" attrs="{'readonly':[('state','=','enviada')]}">
+                        <field name="tipo_mercado"/>
+                        <field name="fecha_sesion"/>
+                    </group>
+                    <group string="CondEco" icon="report" colspan="2" attrs="{'readonly':[('state','=','enviada')]}">
+                        <field name="termino_fijo"/>
+                        <field name="termino_variable"/>
+                    </group>
+                    <group string="Gradientes" icon="chart-bar" colspan="2" attrs="{'readonly':[('state','=','enviada')], 'invisible':[('tipo_mercado', '!=', 'MI')]}">
+                        <field name="grad_parada"/>
+                        <field name="grad_arranque"/>
+                        <field name="grad_bajada"/>
+                        <field name="grad_subida"/>
+                    </group>
+                    <group attrs="{'readonly':[('state','=','enviada')]}">
+                        <field name="state" colspan="2"/>
+                        <button string="Enviar Oferta" name="enviar_oferta" type="object" primary="1" icon="send" colspan="4"/>
+                        <field name="bloque_ids" nolabel="1"/>
+                    </group>
                 </form>
             </field>
         </record>
@@ -165,29 +179,5 @@
         </record>
         <menuitem name="Ofertas de OMIE" id="listado_ofertas" action="action_listar_ofertas"/>
         <!--FIN OMIE OFERTA-->
-        <!--OMIE OFERTA CONSULTA-->
-        <record model="ir.ui.view" id="giscedata_omie_oferta_consulta_tree">
-            <field name="name">giscedata.omie.oferta.consulta.tree</field>
-            <field name="model">giscedata.omie.oferta.consulta</field>
-            <field name="type">tree</field>
-            <field name="arch" type="xml">
-                <tree string="Consulta de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
-                    <field name="codigo"/>
-                    <field name="version"/>
-			    </tree>
-            </field>
-        </record>
-        <record model="ir.ui.view" id="giscedata_omie_oferta_consulta_form">
-            <field name="name">giscedata.omie.oferta.consulta.form</field>
-            <field name="model">giscedata.omie.oferta.consulta</field>
-            <field name="type">form</field>
-            <field name="arch" type="xml">
-                <form string="Consulta de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
-                    <field name="codigo"/>
-                    <field name="version"/>
-                </form>
-            </field>
-        </record>
-        <!--FIN OMIE OFERTA CONSULTA-->
     </data>
 </openerp>

@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from osv import osv, fields
 from omie import ClientOMIE
 from datetime import datetime
+from zeep import helpers
 
 AREA_UNIDAD_SELECTION = [
     ('1', 'España'),
@@ -79,11 +80,33 @@ PERIODO_DIA = [
     ('25', '25'),
 ]
 
+
 class GiscedataOmieOferta(osv.osv):
 
     _name = 'giscedata.omie.oferta'
     _rec_name = 'id_oferta'
     _description = """Representa Ofertas o Ejecuciones de Contratos Bilaterales Físicos."""
+
+    def default_get(self, cursor, uid, fields, context=None):
+        if context is None:
+            context = {}
+        bloque_obj = self.pool.get('giscedata.omie.oferta.bloque')
+        bloque_ids = []
+        for i in range(1, 26):
+            create_vals = {
+                'num': i,
+                'div': 'N',
+                'ret': 'N',
+                'per': str(i),
+            }
+            bloque_id = bloque_obj.create(cursor, uid, create_vals, context=context)
+            bloque_ids.append(bloque_id)
+
+        res = {
+            'state': 'no_enviada',
+            'bloque_ids': bloque_ids,
+        }
+        return res
 
     _columns = {
         'id_mensaje': fields.char(
@@ -96,7 +119,7 @@ class GiscedataOmieOferta(osv.osv):
         'fecha_mensaje': fields.datetime(
             "Fecha Mensaje",
             help="Fecha y hora de generación de los datos para el mensaje (no de envío del mensaje en sí)",
-            required=False
+            required=False, readonly=True
         ),
         'id_remitente': fields.char(
             "ID Remitente", size=16,
@@ -161,30 +184,22 @@ class GiscedataOmieOferta(osv.osv):
         'comentario_oferta': fields.char(
             "Comentario de la Oferta", size=30, help="Comentario de la oferta", required=False
         ),
+        'state': fields.selection(
+            [('no_enviada', 'No Enviada'), ('enviada', 'Enviada')], 'Estado Envio',
+            help="Enviada/No Enviada", readonly=True
+        )
     }
 
     defaults = {
         'uni_energia': lambda *a: 'MWh',
         'uni_monetaria': lambda *a: 'EURO',
+        'uni_precio': lambda *a: 'EURO/MWh',
+        'state': lambda *a: 'no_enviada',
+        'ind_defecto': lambda *a: 'N',
     }
 
 
 GiscedataOmieOferta()
-
-
-class GiscedataOmieOfertaConsulta(osv.osv):
-
-    _name = 'giscedata.omie.oferta.consulta'
-    _rec_name = 'codigo'
-    _description = """Representa una consulta de oferta con código y versión (opcional)."""
-
-    _columns = {
-        'codigo': fields.integer("Código", size=6, required=True),
-        'version': fields.integer("Versión", size=6, required=False),
-    }
-
-
-GiscedataOmieOfertaConsulta()
 
 
 class GiscedataOmieOfertaBloque(osv.osv):
@@ -200,20 +215,19 @@ class GiscedataOmieOfertaBloque(osv.osv):
         'per': fields.selection(
             PERIODO_DIA, "Periodo horario del día",
             help="Seleccionar el periodo del día para el que quiere hacer la oferta", required=True),
-        'ctn': fields.float("Energía de la Oferta", digits=(8, 3), help="Energía de la oferta, sin signo",
-                            required=True),
-        'prc': fields.float("Precio de la Oferta", digits=(8, 3), required=True),
+        'ctn': fields.float("Energía de la Oferta", digits=(8, 3), help="Energía de la oferta, sin signo"),
+        'prc': fields.float("Precio de la Oferta", digits=(8, 3)),
         'oferta_id': fields.many2one('giscedata.omie.oferta', 'ID Oferta'),
     }
 
 
 GiscedataOmieOfertaBloque()
 
-class GiscedataOmieOfertaPeticion(osv.osv):
+class GiscedataOmieOfertaRespuesta(osv.osv):
 
-    _name = 'giscedata.omie.oferta.peticion'
+    _name = 'giscedata.omie.oferta.respuesta'
     _rec_name = 'oferta_id'
-    _description = """Histórico de peticiones y respectivas respuestas de OMIE"""
+    _description = """Histórico de respuestas de peticiones de ofertas de OMIE"""
 
     _columns = {
         'id_mensaje': fields.text(
@@ -279,13 +293,13 @@ class GiscedataOmieOfertaPeticion(osv.osv):
             required=True
         ),
         # CodTransaccion
-        'codigo': fields.integer("Código", size=6, required=True),
-        'version': fields.integer("Versión", size=6, required=False),
+        'cod_transaccion': fields.integer("Código Transacción", size=6),
+        'ver_transaccion': fields.integer("Versión Transacción", size=6),
     }
     #TODO 'Respuesta' (codigoRespuesta i TextoRespuesta) es repeteix. Podria tenir tambe encapsulat codigo i version
 
 
-GiscedataOmieOfertaPeticion()
+GiscedataOmieOfertaRespuesta()
 
 
 class GiscedataOmieOferta(osv.osv):
@@ -317,8 +331,6 @@ class GiscedataOmieOferta(osv.osv):
             }
             list_bloques.append(dicc_bloque)
             i += 1
-
-        # TODO: la fecha_mensaje fare que sigui readonly i només s'emplenarà quan s'hagi enviat la oferta amb datetime.today()
 
         oferta_dicc = {
             'IdMensaje': oferta_vals_filtered.get('id_mensaje'),
@@ -367,47 +379,49 @@ class GiscedataOmieOferta(osv.osv):
 
         return oferta_dicc
 
-    def respuesta_oferta_dicc(self, cursor, uid, respuesta_oferta_dicc, context=None):
+    def respuesta_oferta_dicc(self, cursor, uid, res_oferta_dicc, context=None):
         if context is None:
             context = {}
 
-        texto_respuesta = respuesta_oferta_dicc.get('RespuestaSerie', {}).get('Respuesta', {}).get('TextoRespuesta', False)
-        if texto_respuesta:
-            texto_respuesta = texto_respuesta[0]
+        texto_respuesta = ''
+        list_texto_respuesta = res_oferta_dicc.get('Respuesta', [{}])[0].get('TextoRespuesta', [])
+        for aux in list_texto_respuesta:
+            texto_respuesta += aux + '\n'
+        list_texto_respuesta = res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('Respuesta', [{}])[0].get('TextoRespuesta', [])
+        for aux in list_texto_respuesta:
+            texto_respuesta += aux + '\n'
 
-        peticion_dicc = {
-            'id_mensaje': respuesta_oferta_dicc.get('IdMensaje', False),
-            'fecha_mensaje': respuesta_oferta_dicc.get('FechaMensaje', False),
-            'id_remitente': respuesta_oferta_dicc.get('IdRemitente', False),
-            'id_mensaje_origen': respuesta_oferta_dicc.get('IdMensajeOrigen', False),
-            'ver_mensaje_origen': respuesta_oferta_dicc.get('VerMensajeOrigen', False),
-            'id_remitente_origen': respuesta_oferta_dicc.get('IdRemitenteOrigen', False),
-            'codigo_respuesta': respuesta_oferta_dicc.get('Respuesta', {}).get('CodigoRespuesta', False),
-            'texto_respuesta': respuesta_oferta_dicc.get('Respuesta', {}).get('TextoRespuesta', False),
-            'num_ofertas_procesadas': respuesta_oferta_dicc.get('ResumenOfertas', {}).get('NumOfertasProcesadas', {}).get('v', False),
-            'num_ofertas_correctas': respuesta_oferta_dicc.get('ResumenOfertas', {}).get('NumOfertasCorrectas', {}).get('v', False),
-            'oferta_id': respuesta_oferta_dicc.get('RespuestaSerie', {}).get('IdOferta', {}).get('v', False),
-            'codigo': respuesta_oferta_dicc.get('RespuestaSerie', {}).get('CodTransaccion', {}).get('codigo', False),
-            'version': respuesta_oferta_dicc.get('RespuestaSerie', {}).get('CodTransaccion', {}).get('version', False),
-            #'codigo_respuesta': respuesta_oferta_dicc.get('RespuestaSerie', {}).get('Respuesta', {}).get('CodigoRespuesta', {}).get('v', False),
-            #'texto_respuesta': texto_respuesta,
-            'ver_transaccion': respuesta_oferta_dicc.get('RespuestaSerie', {}).get('IdOferta', {}).get('v', False),
-            'id_unidad': respuesta_oferta_dicc.get('RespuestaSerie', {}).get('CodTransaccion', {}).get('v', False),
-            'cod_min_unidad': respuesta_oferta_dicc.get('RespuestaSerie', {}).get('CodTransaccion', {}).get('codMin', False),
-            'area_unidad': respuesta_oferta_dicc.get('RespuestaSerie', {}).get('CodTransaccion', {}).get('area', False),
-            'tipo_unidad': respuesta_oferta_dicc.get('RespuestaSerie', {}).get('CodTransaccion', {}).get('tipo', False),
+        respuesta_dicc = {
+            'id_mensaje': res_oferta_dicc.get('IdMensaje', {}).get('v', False),
+            'fecha_mensaje': res_oferta_dicc.get('FechaMensaje', {}).get('v', False),
+            'id_remitente': res_oferta_dicc.get('IdRemitente', {}).get('v', False),
+            'id_mensaje_origen': res_oferta_dicc.get('IdMensajeOrigen', {}).get('v', False),
+            'ver_mensaje_origen': res_oferta_dicc.get('VerMensajeOrigen', False),
+            'id_remitente_origen': res_oferta_dicc.get('IdRemitenteOrigen', {}).get('v', False),
+            'codigo_respuesta': res_oferta_dicc.get('Respuesta', [{}])[0].get('CodigoRespuesta', {}).get('v', ''),
+            'texto_respuesta': texto_respuesta,
+            'num_ofertas_procesadas': res_oferta_dicc.get('ResumenOfertas', {}).get('NumOfertasProcesadas', {}).get('v', False),
+            'num_ofertas_correctas': res_oferta_dicc.get('ResumenOfertas', {}).get('NumOfertasCorrectas', {}).get('v', False),
+            'codigo_respuesta': res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('Respuesta', [{}])[0].get('CodigoRespuesta', [{}]).get('v', False),
+            'texto_respuesta': res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('Respuesta', [{}])[0].get('TextoRespuesta', [False])[0],
+            'id_unidad': res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('IdUnidad', {}).get('v', False),
+            'cod_min_unidad': res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('IdUnidad', {}).get('codMin', False),
+            'area_unidad': res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('IdUnidad', {}).get('area', False),
+            'tipo_unidad': res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('IdUnidad', {}).get('tipo', False),
         }
+        return respuesta_dicc
 
 
-    def crear_peticion_oferta(self, cursor, uid, oferta_id, respuesta_oferta_dicc, context=None):
+    def crear_respuesta_oferta(self, cursor, uid, oferta_id, respuesta_oferta_dicc, context=None):
         if context is None:
             context = {}
 
-        peticion_obj = self.pool.get('giscedata.omie.oferta.peticion')
+        respuesta_obj = self.pool.get('giscedata.omie.oferta.respuesta')
 
-        peticion_dicc = self.respuesta_oferta_dicc(cursor, uid, respuesta_oferta_dicc, context=context)
-        peticion_dicc.update({'oferta_id': oferta_id})
-        peticion_obj.create(cursor, uid, peticion_dicc, context=context)
+        respuesta_dicc = self.respuesta_oferta_dicc(cursor, uid, respuesta_oferta_dicc, context=context)
+        respuesta_dicc.update({'oferta_id': oferta_id})
+        respuesta_id = respuesta_obj.create(cursor, uid, respuesta_dicc, context=context)
+        return respuesta_id
 
     def delete_null_fields(self, cursor, uid, oferta_dicc, context=None):
         if context is None:
@@ -419,23 +433,24 @@ class GiscedataOmieOferta(osv.osv):
         if context is None:
             context = {}
 
+        oferta_obj = self.pool.get('giscedata.omie.oferta')
+
         for oferta_id in ids:
-
-            oferta_dicc = self.mensaje_oferta_md_dicc(cursor, uid, oferta_id, context=context)
-
-
+            oferta_dicc = oferta_obj.mensaje_oferta_md_dicc(cursor, uid, oferta_id, context=context)
             client = ClientOMIE(
                 crt_path='/home/aorellana/proyectos/OMIE/omie-base/omie/data/omie.cert',
                 crt_key='/home/aorellana/proyectos/OMIE/omie-base/omie/data/omie.key'
             )
-
-            # Crear una petició associada a aquesta oferta
-            # La petició s'emplenarà amb el que ens retorni la petició
-            # Si salta una excepció farem saltar un raise
-
             try:
-                respuesta_oferta_dicc = client.ServicioAltaOfertasMD(MensajeOfertasMD=oferta_dicc)
-                self.crear_peticion_oferta(cursor, uid, oferta_id, respuesta_oferta_dicc, context=context)
+                res_oferta_zeep = client.ServicioAltaOfertasMD(MensajeOfertasMD=oferta_dicc)
+                res_oferta_dicc = helpers.serialize_object(res_oferta_zeep)
+                oferta_obj.crear_respuesta_oferta(cursor, uid, oferta_id, res_oferta_dicc, context=context)
+                # Añadir fecha_mensaje y cambiar estado en la oferta enviada
+                write_vals = {
+                    'fecha_mensaje': datetime.today().strftime('%Y-%m-%d'),
+                    'state': 'enviada',
+                }
+                oferta_obj.write(cursor, uid, [oferta_id], write_vals, context=context)
             except Exception as e:
                 raise osv.except_osv('Error:', e)
 
@@ -443,9 +458,9 @@ class GiscedataOmieOferta(osv.osv):
     _columns = {
         # Blq
         'bloque_ids': fields.one2many('giscedata.omie.oferta.bloque', 'oferta_id', "Bloques de Oferta"),
-        # Peticiones
-        'peticion_ids': fields.one2many(
-            'giscedata.omie.oferta.peticion', 'oferta_id', "Peticiones de Oferta", readonly=True
+        # Respuestas
+        'respuesta_ids': fields.one2many(
+            'giscedata.omie.oferta.respuesta', 'oferta_id', "Respuestas de peticiones de Oferta", readonly=True
         ),
     }
 

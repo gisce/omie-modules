@@ -9,9 +9,9 @@
   "init_xml": [],
   "demo_xml": [],
   "update_xml": [
+    'security/giscedata_omie_oferta_security.xml',
+    'security/ir.model.access.csv',
     'giscedata_omie_oferta_view.xml',
-    'wizard/wizard_menu_principal_view.xml',
-    'wizard/wizard_mensaje_consulta_datos_enviados_view.xml',
   ],
   "active": False,
   "installable": True
