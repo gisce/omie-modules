@@ -87,10 +87,17 @@ class GiscedataOmieOferta(osv.osv):
     _rec_name = 'id_oferta'
     _description = """Representa Ofertas o Ejecuciones de Contratos Bilaterales Físicos."""
 
-    def default_get(self, cursor, uid, fields, context=None):
+    def create(self, cursor, uid, vals, context=None):
         if context is None:
             context = {}
         bloque_obj = self.pool.get('giscedata.omie.oferta.bloque')
+
+        oferta_id = super(osv.osv, self).create(cursor, uid, vals, context=context)
+        write_vals = {
+            'id_mensaje': oferta_id,
+            'id_oferta': 'OF' + str(oferta_id)
+        }
+        self.write(cursor, uid, [oferta_id], write_vals, context=context)
         bloque_ids = []
         for i in range(1, 26):
             create_vals = {
@@ -98,20 +105,36 @@ class GiscedataOmieOferta(osv.osv):
                 'div': 'N',
                 'ret': 'N',
                 'per': str(i),
+                'oferta_id': oferta_id,
             }
             bloque_id = bloque_obj.create(cursor, uid, create_vals, context=context)
             bloque_ids.append(bloque_id)
+        return oferta_id
+
+    def default_get(self, cursor, uid, fields, context=None):
+        if context is None:
+            context = {}
 
         res = {
             'state': 'no_enviada',
-            'bloque_ids': bloque_ids,
+            'uni_energia': 'MWh',
+            'uni_monetaria': 'EURO',
+            'uni_precio': 'EURO/MWh',
+            'grad_parada': 0.0,
+            'grad_arranque': 0.0,
+            'grad_bajada': 0.0,
+            'grad_subida': 0.0,
+            'ind_defecto': 'N',
+            'area_unidad': '1',
+            'tipo_unidad': 'UO',
+            'tipo_mercado': 'MD',
         }
         return res
 
     _columns = {
         'id_mensaje': fields.char(
             "ID Mensaje", size=64,
-            help="Código que identifica un elemento de forma única dentro del documento.", required=True
+            help="Código que identifica un elemento de forma única dentro del documento.", readonly=True
         ),
         'ver_mensaje': fields.integer(
             "Número Versión Mensaje", help="Número de versión de un mensaje", required=False
@@ -129,7 +152,7 @@ class GiscedataOmieOferta(osv.osv):
         'id_oferta': fields.char(
             "ID Oferta", size=16,
             help="Identificativo de la oferta dentro del fichero, definido por quien "
-                 "envía el fichero (único por mensaje)", required=True
+                 "envía el fichero (único por mensaje)", readonly=True
         ),
         # Unidad
         # v
@@ -166,19 +189,16 @@ class GiscedataOmieOferta(osv.osv):
         ),
         #'tipo_casacion' SIEMPRE VALE 1
         'clase_oferta': fields.selection(CLASE_OFERTA, "Clase de Oferta", help="C: Compra, V: Venta", required=True),
-        # CondEco
-        'termino_fijo': fields.integer("Término Fijo", size=9, help="Término fijo"),
-        'termino_variable': fields.float("Término Variable", digits=(12, 3), help="Término variable"),
         # CondTec
         #Gradiente
-        'grad_parada': fields.float("Gradiente de Parada", digits=(6, 1), help="Gradiente de Parada", required=True),
-        'grad_arranque': fields.float("Gradiente de Arranque", digits=(6, 1), help="Gradiente de Arranque", required=True),
-        'grad_bajada': fields.float("Gradiente de Bajada", digits=(6, 1), help="Gradiente de Bajada", required=True),
-        'grad_subida': fields.float("Gradiente de Subida", digits=(6, 1), help="Gradiente de Subida", required=True),
-        'uni_energia': fields.selection(UNIDAD_ENERGIA, "Unidad de Energía", help="MWh/kWh", required=True),
-        'uni_monetaria': fields.selection(UNIDAD_MONETARIA, "Unidad Monetaria", help="cEURO/EURO", required=True),
+        'grad_parada': fields.float("Gradiente de Parada", digits=(6, 1), help="Gradiente de Parada"),
+        'grad_arranque': fields.float("Gradiente de Arranque", digits=(6, 1), help="Gradiente de Arranque"),
+        'grad_bajada': fields.float("Gradiente de Bajada", digits=(6, 1), help="Gradiente de Bajada"),
+        'grad_subida': fields.float("Gradiente de Subida", digits=(6, 1), help="Gradiente de Subida"),
+        'uni_energia': fields.selection(UNIDAD_ENERGIA, "Unidad de Energía", help="MWh/kWh"),
+        'uni_monetaria': fields.selection(UNIDAD_MONETARIA, "Unidad Monetaria", help="cEURO/EURO"),
         'uni_precio': fields.selection(
-            UNIDAD_PRECIOS, 'Unidad de Precio', help="cEURO/kWh, cEURO/MWh, EURO/MWh", required=True
+            UNIDAD_PRECIOS, 'Unidad de Precio', help="cEURO/kWh, cEURO/MWh, EURO/MWh",
         ),
         #'uni_gradiente' SIEMPRE VALE 'MW/Min'
         'comentario_oferta': fields.char(
@@ -196,6 +216,11 @@ class GiscedataOmieOferta(osv.osv):
         'uni_precio': lambda *a: 'EURO/MWh',
         'state': lambda *a: 'no_enviada',
         'ind_defecto': lambda *a: 'N',
+        'grad_parada': lambda *a: 0.0,
+        'grad_arranque': lambda *a: 0.0,
+        'grad_bajada': lambda *a: 0.0,
+        'grad_subida': lambda *a: 0.0,
+        'default_values_set': lambda *a: True,
     }
 
 
@@ -354,18 +379,6 @@ class GiscedataOmieOferta(osv.osv):
                     'TipoCasacion': 1,  # Siempre vale 1
                 },
                 'ClaseOferta': oferta_vals_filtered.get('clase_oferta'),
-                'CondEco': {
-                    'TerminoFijo': oferta_vals_filtered.get('termino_fijo', 0),
-                    'TerminoVariable': oferta_vals_filtered.get('termino_variable', 0.0)
-                },
-                'CondTec': {
-                    'Gradientes': {
-                        'Parada': oferta_vals_filtered.get('grad_parada'),
-                        'Arranque': oferta_vals_filtered.get('grad_arranque'),
-                        'Bajada': oferta_vals_filtered.get('grad_bajada'),
-                        'Subida': oferta_vals_filtered.get('grad_subida')
-                    }
-                },
                 'UniEnergia': oferta_vals_filtered.get('uni_energia'),
                 'UniMonetaria': oferta_vals_filtered.get('uni_monetaria'),
                 'UniPrecio': oferta_vals_filtered.get('uni_precio'),

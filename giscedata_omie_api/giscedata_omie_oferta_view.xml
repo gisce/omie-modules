@@ -109,12 +109,6 @@
                     <field name="fecha_sesion"/>
                     <field name="ind_defecto"/>
                     <field name="clase_oferta"/>
-                    <field name="termino_fijo"/>
-                    <field name="termino_variable"/>
-                    <field name="grad_parada"/>
-                    <field name="grad_arranque"/>
-                    <field name="grad_bajada"/>
-                    <field name="grad_subida"/>
                     <field name="uni_energia"/>
                     <field name="uni_monetaria"/>
                     <field name="uni_precio"/>
@@ -140,6 +134,7 @@
                         <field name="id_oferta" colspan="2"/>
                         <field name="clase_oferta" colspan="2"/>
                         <field name="comentario_oferta" colspan="2"/>
+                        <field name="ind_defecto" colspan="2"/>
                     </group>
                     <group string="Información Unidad" icon="info-circle" colspan="2" attrs="{'readonly':[('state','=','enviada')]}">
                         <field name="id_unidad"/>
@@ -150,16 +145,6 @@
                     <group string="Validez" icon="calendar-check" colspan="2" attrs="{'readonly':[('state','=','enviada')]}">
                         <field name="tipo_mercado"/>
                         <field name="fecha_sesion"/>
-                    </group>
-                    <group string="CondEco" icon="report" colspan="2" attrs="{'readonly':[('state','=','enviada')]}">
-                        <field name="termino_fijo"/>
-                        <field name="termino_variable"/>
-                    </group>
-                    <group string="Gradientes" icon="chart-bar" colspan="2" attrs="{'readonly':[('state','=','enviada')], 'invisible':[('tipo_mercado', '!=', 'MI')]}">
-                        <field name="grad_parada"/>
-                        <field name="grad_arranque"/>
-                        <field name="grad_bajada"/>
-                        <field name="grad_subida"/>
                     </group>
                     <group attrs="{'readonly':[('state','=','enviada')]}">
                         <field name="state" colspan="2"/>
