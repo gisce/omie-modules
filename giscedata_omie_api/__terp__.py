@@ -13,6 +13,7 @@
     'security/ir.model.access.csv',
     'giscedata_omie_oferta_view.xml',
     'wizard/wizard_llenar_bloques_oferta_view.xml',
+    'wizard/wizard_consulta_fecha_hora_view.xml',
   ],
   "active": False,
   "installable": True
