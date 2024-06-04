@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openerp>
+    <data>
+        <record id="view_wizard_consulta_sesiones_form" model="ir.ui.view">
+            <field name="name">wizard.consulta.sesiones.form</field>
+            <field name="model">wizard.consulta.sesiones</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Consultar Sesiones del Mercado">
+                    <field name="state" invisible="1"/>
+                    <group col="10" attrs="{'invisible': [('state', '!=', 'init')]}">
+                        <label string="Consultar la Sesiones del Mercado en Tiempo Real." colspan="10"/>
+                        <button icon="gtk-cancel" special="cancel" string="Cancelar" type="object" colspan="5"/>
+				        <button icon="gtk-ok" name="consulta_sesiones" string="Consultar Sesiones" type="object" colspan="5"/>
+                    </group>
+                    <group col="4" attrs="{'invisible': [('state', '!=', 'end')]}">
+                        <group string="Mensaje" icon="message" colspan="4" attrs="{'readonly':[('state','=','end')]}">
+                            <field name="num_mensajes"/>
+                            <field name="fecha_ult_mensaje"/>
+                        </group>
+                        <group string="Mercado Diario" icon="timeline" colspan="4" attrs="{'readonly':[('state','=','end')], 'invisible': [('md_recl', '!=', True), ('md_ses_act', '!=', True), ('md_ses_ult', '!=', True)]}">
+                            <group string="Reclamaciones" icon="exclamation-circle" colspan="4" attrs="{'readonly':[('state','=','end')], 'invisible': [('md_recl', '!=', True)]}">
+                                <field name="md_recl" invisible="1"/>
+                                <field name="md_recl_abiertas"/>
+                                <field name="md_per_casacion_abierto"/>
+                                <field name="md_per_recl_abierto"/>
+                                <field name="md_fecha_cierre_recl"/>
+                            </group>
+                            <group string="Sesión Actual" icon="calendar" colspan="4" attrs="{'readonly':[('state','=','end')], 'invisible': [('md_ses_act', '!=', True)]}">
+                                <field name="md_ses_act" invisible="1"/>
+                                <field name="md_num_sesion_recl"/>
+                                <field name="md_fecha_sesion_act"/>
+                                <field name="md_numero_casacion"/>
+                            </group>
+                            <group string="Última Sesión Casada" icon="calendar-stats" colspan="4" attrs="{'readonly':[('state','=','end')], 'invisible': [('md_ses_ult', '!=', True)]}">
+                                <field name="md_ses_ult" invisible="1"/>
+                                <field name="md_fecha_cierre_act"/>
+                                <field name="md_fecha_ult_sesion_casada"/>
+                            </group>
+                        </group>
+                        <group string="Mercado Intradiario" icon="shopping-cart" colspan="4" attrs="{'readonly':[('state','=','end')], 'invisible': [('mi_recl', '!=', True), ('mi_ses_act', '!=', True), ('mi_ses_ini', '!=', True), ('mi_ses_fin', '!=', True), ('mi_ses_ult', '!=', True) ]}">
+                            <group string="Reclamaciones" icon="exclamation-circle" colspan="4" attrs="{'readonly':[('state','=','end')], 'invisible': [('mi_recl', '!=', True)]}">
+                                <field name="mi_recl" invisible="1"/>
+                                <field name="mi_recl_abiertas"/>
+                                <field name="mi_per_casacion_abierto"/>
+                                <field name="mi_per_recl_abierto"/>
+                                <field name="mi_fecha_cierre_recl"/>
+                                <field name="mi_num_sesion_recl"/>
+                            </group>
+                            <group string="Sesion Actual" icon="calendar" colspan="4" attrs="{'readonly':[('state','=','end')], 'invisible': [('mi_ses_act', '!=', True)]}">
+                                <field name="mi_ses_act" invisible="1"/>
+                                <field name="mi_fecha_sesion_act"/>
+                                <field name="mi_numero_casacion"/>
+                                <field name="mi_fecha_apertura_act"/>
+                                <field name="mi_hora_cierre_act"/>
+                            </group>
+                            <group string="Inicio Horizonte de la Sesión" icon="brackets-contain-start" colspan="4" attrs="{'readonly':[('state','=','end')], 'invisible': [('mi_ses_ini', '!=', True)]}">
+                                <field name="mi_ses_ini" invisible="1"/>
+                                <field name="mi_fecha_sesion_ini"/>
+                                <field name="mi_hora_inicio_ini"/>
+                                <field name="mi_hora_efectiva_ini"/>
+                            </group>
+                            <group string="Fin Horizonte de la Sesión" icon="brackets-contain-end" colspan="4" attrs="{'readonly':[('state','=','end')], 'invisible': [('mi_ses_fin', '!=', True)]}">
+                                <field name="mi_ses_fin" invisible="1"/>
+                                <field name="mi_fecha_sesion_fin"/>
+                                <field name="mi_hora_inicio_fin"/>
+                                <field name="mi_hora_efectiva_fin"/>
+                            </group>
+                            <group string="Última Sesión Casada" icon="calendar-stats" colspan="4" attrs="{'readonly':[('state','=','end')], 'invisible': [('mi_ses_ult', '!=', True)]}">
+                                <field name="mi_ses_ult" invisible="1"/>
+                                <field name="mi_fecha_sesion_ult"/>
+                                <field name="mi_num_sesion_ult"/>
+                            </group>
+                        </group>
+                        <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" colspan="4"/>
+                    </group>
+                    <group col="4" attrs="{'invisible': [('state', '!=', 'error')]}">
+                        <label string="No se ha realizado correctamente la conexión con OMIE."/>
+                        <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" colspan="4"/>
+                    </group>
+                </form>
+            </field>
+        </record>
+        <record id="action_wizard_consulta_sesiones" model="ir.actions.act_window">
+            <field name="name">Consultar Sesiones del Mercado</field>
+            <field name="res_model">wizard.consulta.sesiones</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="view_wizard_consulta_sesiones_form"/>
+            <field name="target">new</field>
+        </record>
+        <record id="value_consulta_sesiones" model="ir.values">
+            <field name="object" eval="1"/>
+            <field name="name">Consultar Sesiones del Mercado</field>
+            <field name="key2">client_action_multi</field>
+            <field name="key">action</field>
+            <field name="value" eval="'ir.actions.act_window,'+str(ref('action_wizard_consulta_sesiones'))" />
+        </record>
+        <menuitem name="Consultar Sesiones del Mercado" id="consulta_sesiones_mercado" action="action_wizard_consulta_sesiones"/>
+    </data>
+</openerp>

@@ -11,3 +11,6 @@
 "access_wizard_llenar_bloques_oferta_r","wizard.llenar.bloques.oferta","model_wizard_llenar_bloques_oferta","group_giscedata_omie_oferta_r",1,0,0,0
 "access_wizard_llenar_bloques_oferta_w","wizard.llenar.bloques.oferta","model_wizard_llenar_bloques_oferta","group_giscedata_omie_oferta_w",1,1,1,0
 "access_wizard_llenar_bloques_oferta_u","wizard.llenar.bloques.oferta","model_wizard_llenar_bloques_oferta","group_giscedata_omie_oferta_u",1,1,1,1
+"access_wizard_consulta_sesiones_r","wizard.consulta.sesiones","model_wizard_consulta_sesiones","group_giscedata_omie_oferta_r",1,0,0,0
+"access_wizard_consulta_sesiones_w","wizard.consulta.sesiones","model_wizard_consulta_sesiones","group_giscedata_omie_oferta_w",1,1,1,0
+"access_wizard_consulta_sesiones_u","wizard.consulta.sesiones","model_wizard_consulta_sesiones","group_giscedata_omie_oferta_u",1,1,1,1
