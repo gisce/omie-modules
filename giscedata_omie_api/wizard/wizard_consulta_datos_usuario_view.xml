@@ -59,7 +59,7 @@
             <field name="key">action</field>
             <field name="value" eval="'ir.actions.act_window,'+str(ref('action_wizard_consulta_datos_usuario'))" />
         </record>
-        <menuitem name="Consultar Datos del Usuario Actual" id="consulta_datos_usuario" action="action_wizard_consulta_datos_usuario"/>
+        <menuitem name="Consultar Datos del Usuario Actual" id="consulta_datos_usuario" action="action_wizard_consulta_datos_usuario" parent="menu_omie"/>
     </data>
     <!-- PERMISOS USUARIO -->
     <data>

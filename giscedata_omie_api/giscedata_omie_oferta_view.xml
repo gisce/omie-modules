@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <openerp>
     <data>
+        <menuitem name="OMIE" id="menu_omie"/>
         <!--OMIE OFERTA BLOQUE-->
         <record model="ir.ui.view" id="giscedata_omie_oferta_bloque_tree">
             <field name="name">giscedata.omie.oferta.bloque.tree</field>
@@ -132,7 +133,7 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
         </record>
-        <menuitem name="Ofertas de OMIE" id="listado_ofertas" action="action_listar_ofertas"/>
+        <menuitem name="Ofertas de OMIE" id="listado_ofertas" action="action_listar_ofertas" parent="menu_omie"/>
         <!--FIN OMIE OFERTA-->
     </data>
 </openerp>

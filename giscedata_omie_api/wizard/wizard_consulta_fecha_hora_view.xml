@@ -39,6 +39,6 @@
             <field name="key">action</field>
             <field name="value" eval="'ir.actions.act_window,'+str(ref('action_wizard_consulta_fecha_hora'))" />
         </record>
-        <menuitem name="Consultar Fecha y Hora Oficial del Mercado" id="consulta_fecha_hora_mercado" action="action_wizard_consulta_fecha_hora"/>
+        <menuitem name="Consultar Fecha y Hora Oficial del Mercado" id="consulta_fecha_hora_mercado" action="action_wizard_consulta_fecha_hora" parent="menu_omie"/>
     </data>
 </openerp>
