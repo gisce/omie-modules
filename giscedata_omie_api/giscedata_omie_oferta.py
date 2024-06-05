@@ -207,6 +207,37 @@ class GiscedataOmieOferta(osv.osv):
         'state': fields.selection(
             [('no_enviada', 'No Enviada'), ('enviada', 'Enviada')], 'Estado Envio',
             help="Enviada/No Enviada", readonly=True
+        ),
+        # RESPUESTA
+        'id_mensaje_respuesta': fields.char(
+            'Mensaje Petición', help="Identificación del mensaje (libre para el creador del mensaje)", size=64,
+            required=True, readonly=True),
+        'fecha_mensaje_respuesta': fields.char(
+            "Fecha Petición", size=32,
+            help="Fecha y hora de generación de los datos para el mensaje (no de envío del mensaje en sí)",
+            required=True, readonly=True
+        ),
+        'id_remitente_respuesta': fields.char(
+            "ID Remitente", size=16,
+            help="Código del Agente que envía la respuesta (OMEL)", required=True, readonly=True
+        ),
+        'id_remitente_origen': fields.char(
+            'ID Remitente Origen', size=16,
+            help="Código del Agente que envió el mensaje", required=True, readonly=True
+        ),
+        # Respuesta
+        'codigo_respuesta': fields.char(
+            'Código Respuesta', size=16, help="Código de la respuesta", required=True, readonly=True
+        ),
+        'texto_respuesta': fields.text(
+            'Texto Respuesta', help="Textos descriptivos de la respuesta", required=False, readonly=True
+        ),
+        # ResumenOfertas
+        'num_ofertas_procesadas': fields.char(
+            'Núm. Ofertas Procesadas', size=16, help="Número total de ofertas procesadas", required=True, readonly=True
+        ),
+        'num_ofertas_correctas': fields.char(
+            'Núm. Ofertas Correctas', size=16, help="Número total de ofertas correctas", required=True, readonly=True
         )
     }
 
@@ -248,89 +279,30 @@ class GiscedataOmieOfertaBloque(osv.osv):
 
 GiscedataOmieOfertaBloque()
 
-class GiscedataOmieOfertaRespuesta(osv.osv):
-
-    _name = 'giscedata.omie.oferta.respuesta'
-    _rec_name = 'oferta_id'
-    _description = """Histórico de respuestas de peticiones de ofertas de OMIE"""
-
-    _columns = {
-        'id_mensaje': fields.text(
-            'Mensaje Petición', help="Identificación del mensaje (libre para el creador del mensaje)",
-            required=True, readonly=True),
-        'fecha_mensaje': fields.datetime(
-            "Fecha Petición",
-            help="Fecha y hora de generación de los datos para el mensaje (no de envío del mensaje en sí)",
-            required=True, readonly=True
-        ),
-        'id_remitente': fields.char(
-            "ID Remitente", size=16,
-            help="Código del Agente que envía la respuesta (OMEL)", required=True, readonly=True
-        ),
-        'id_mensaje_origen': fields.text(
-            'Mensaje Origen Petición',
-            help="Identificación del mensaje que se envió (libre para el creador del mensaje)",
-            required=True, readonly=True
-        ),
-        'ver_mensaje_origen': fields.integer(
-            'Versión Mensaje',
-            help="Versión del mensaje que se envió (libre para el creador del mensaje)", required=False, readonly=True
-        ),
-        'id_remitente_origen': fields.char(
-            'ID Remitente Origen', size=16,
-            help="Código del Agente que envió el mensaje", required=True, readonly=True
-        ),
-        # Respuesta
-        'codigo_respuesta': fields.char(
-            'Código Respuesta', size=16, help="Código de la respuesta", required=True, readonly=True
-        ),
-        'texto_respuesta': fields.text(
-            'Texto Respuesta', help="Textos descriptivos de la respuesta", required=False, readonly=True
-        ),
-        # ResumenOfertas
-        'num_ofertas_procesadas': fields.integer(
-            'Núm. Ofertas Procesadas', help="Número total de ofertas procesadas", required=True, readonly=True
-        ),
-        'num_ofertas_correctas': fields.integer(
-            'Núm. Ofertas Correctas', help="Número total de ofertas correctas", required=True, readonly=True
-        ),
-        # RespuestaSerie
-        'oferta_id': fields.many2one(
-            'giscedata.omie.oferta', "Oferta",
-            help="ID de las oferta asociada a esta petición", required=True, readonly=True
-        ),
-        # Unidad
-        'id_unidad': fields.char(
-            "ID Unidad", size=16, help="Código de unidad ofertante o física.", required=True
-        ),
-        'cod_min_unidad': fields.char(
-            "Código del Ministerio", size=50, help="Código del Ministerio", required=False
-        ),
-        'area_unidad': fields.selection(
-            AREA_UNIDAD_SELECTION, "Área de Unidad",
-            help="1: España, 2: Portugal, 3: Europa - Interconex Francia, 4: Andorra, 5: Africa - Interconex Marruecos",
-            required=True
-        ),
-        'tipo_unidad': fields.selection(
-            TIPO_UNIDAD_SELECTION, "Tipo de Unidad",
-            help="UO: Unidad Ofertante, UF: Unidad Física, RE: Régimen Especial, "
-                 "CP: Unidad de Contratación a Plazo, UP: Unidad de programación",
-            required=True
-        ),
-        # CodTransaccion
-        'cod_transaccion': fields.integer("Código Transacción", size=6),
-        'ver_transaccion': fields.integer("Versión Transacción", size=6),
-    }
-    #TODO 'Respuesta' (codigoRespuesta i TextoRespuesta) es repeteix. Podria tenir tambe encapsulat codigo i version
-
-
-GiscedataOmieOfertaRespuesta()
-
 
 class GiscedataOmieOferta(osv.osv):
 
     _name = 'giscedata.omie.oferta'
     _inherit = 'giscedata.omie.oferta'
+
+    def copy_data(self, cursor, uid, id, default=None, context=None):
+        if context is None:
+            context = {}
+        if default is None:
+            default = {}
+
+        default['bloque_ids'] = [(5, 0, 0)]
+        default['state'] = 'no_enviada'
+        default['id_mensaje_respuesta'] = False
+        default['fecha_mensaje_respuesta'] = False
+        default['id_remitente_respuesta'] = False
+        default['id_remitente_origen'] = False
+        default['codigo_respuesta'] = False
+        default['texto_respuesta'] = False
+        default['num_ofertas_procesadas'] = False
+        default['num_ofertas_correctas'] = False
+
+        return super(GiscedataOmieOferta, self).copy_data(cursor, uid, id, default, context)
 
     def mensaje_oferta_md_dicc(self, cursor, uid, oferta_id, context=None):
         if context is None:
@@ -346,15 +318,16 @@ class GiscedataOmieOferta(osv.osv):
         i = 1
         for bloque_id in oferta_vals_filtered.get('bloque_ids', []):
             bloque_vals = bloque_obj.read(cursor, uid, bloque_id, [], context=context)
-            dicc_bloque = {
-                "num": i,
-                "div": bloque_vals.get('div'),
-                "ret": bloque_vals.get('ret'),
-                "Per": bloque_vals.get('per'),
-                "Ctn": bloque_vals.get('ctn'),
-                "Prc": bloque_vals.get('prc')
-            }
-            list_bloques.append(dicc_bloque)
+            if bloque_vals.get('ctn') and bloque_vals.get('prc'):
+                dicc_bloque = {
+                    "num": i,
+                    "div": bloque_vals.get('div'),
+                    "ret": bloque_vals.get('ret'),
+                    "Per": bloque_vals.get('per'),
+                    "Ctn": bloque_vals.get('ctn'),
+                    "Prc": bloque_vals.get('prc')
+                }
+                list_bloques.append(dicc_bloque)
             i += 1
 
         oferta_dicc = {
@@ -397,30 +370,19 @@ class GiscedataOmieOferta(osv.osv):
             context = {}
 
         texto_respuesta = ''
-        list_texto_respuesta = res_oferta_dicc.get('Respuesta', [{}])[0].get('TextoRespuesta', [])
-        for aux in list_texto_respuesta:
-            texto_respuesta += aux + '\n'
         list_texto_respuesta = res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('Respuesta', [{}])[0].get('TextoRespuesta', [])
         for aux in list_texto_respuesta:
             texto_respuesta += aux + '\n'
 
         respuesta_dicc = {
-            'id_mensaje': res_oferta_dicc.get('IdMensaje', {}).get('v', False),
-            'fecha_mensaje': res_oferta_dicc.get('FechaMensaje', {}).get('v', False),
-            'id_remitente': res_oferta_dicc.get('IdRemitente', {}).get('v', False),
-            'id_mensaje_origen': res_oferta_dicc.get('IdMensajeOrigen', {}).get('v', False),
-            'ver_mensaje_origen': res_oferta_dicc.get('VerMensajeOrigen', False),
+            'id_mensaje_respuesta': res_oferta_dicc.get('IdMensaje', {}).get('v', False),
+            'fecha_mensaje_respuesta': res_oferta_dicc.get('FechaMensaje', {}).get('v', False),
+            'id_remitente_respuesta': res_oferta_dicc.get('IdRemitente', {}).get('v', False),
             'id_remitente_origen': res_oferta_dicc.get('IdRemitenteOrigen', {}).get('v', False),
             'codigo_respuesta': res_oferta_dicc.get('Respuesta', [{}])[0].get('CodigoRespuesta', {}).get('v', ''),
             'texto_respuesta': texto_respuesta,
             'num_ofertas_procesadas': res_oferta_dicc.get('ResumenOfertas', {}).get('NumOfertasProcesadas', {}).get('v', False),
             'num_ofertas_correctas': res_oferta_dicc.get('ResumenOfertas', {}).get('NumOfertasCorrectas', {}).get('v', False),
-            'codigo_respuesta': res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('Respuesta', [{}])[0].get('CodigoRespuesta', [{}]).get('v', False),
-            'texto_respuesta': res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('Respuesta', [{}])[0].get('TextoRespuesta', [False])[0],
-            'id_unidad': res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('IdUnidad', {}).get('v', False),
-            'cod_min_unidad': res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('IdUnidad', {}).get('codMin', False),
-            'area_unidad': res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('IdUnidad', {}).get('area', False),
-            'tipo_unidad': res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('IdUnidad', {}).get('tipo', False),
         }
         return respuesta_dicc
 
@@ -429,12 +391,8 @@ class GiscedataOmieOferta(osv.osv):
         if context is None:
             context = {}
 
-        respuesta_obj = self.pool.get('giscedata.omie.oferta.respuesta')
-
         respuesta_dicc = self.respuesta_oferta_dicc(cursor, uid, respuesta_oferta_dicc, context=context)
-        respuesta_dicc.update({'oferta_id': oferta_id})
-        respuesta_id = respuesta_obj.create(cursor, uid, respuesta_dicc, context=context)
-        return respuesta_id
+        return respuesta_dicc
 
     def delete_null_fields(self, cursor, uid, oferta_dicc, context=None):
         if context is None:
@@ -457,12 +415,13 @@ class GiscedataOmieOferta(osv.osv):
             try:
                 res_oferta_zeep = client.ServicioAltaOfertasMD(MensajeOfertasMD=oferta_dicc)
                 res_oferta_dicc = helpers.serialize_object(res_oferta_zeep)
-                oferta_obj.crear_respuesta_oferta(cursor, uid, oferta_id, res_oferta_dicc, context=context)
+                respuesta_dicc = self.crear_respuesta_oferta(cursor, uid, oferta_id, res_oferta_dicc, context=context)
                 # Añadir fecha_mensaje y cambiar estado en la oferta enviada
                 write_vals = {
                     'fecha_mensaje': datetime.today().strftime('%Y-%m-%d'),
                     'state': 'enviada',
                 }
+                write_vals.update(respuesta_dicc)
                 oferta_obj.write(cursor, uid, [oferta_id], write_vals, context=context)
             except Exception as e:
                 raise osv.except_osv('Error:', e)
@@ -470,11 +429,7 @@ class GiscedataOmieOferta(osv.osv):
 
     _columns = {
         # Blq
-        'bloque_ids': fields.one2many('giscedata.omie.oferta.bloque', 'oferta_id', "Bloques de Oferta"),
-        # Respuestas
-        'respuesta_ids': fields.one2many(
-            'giscedata.omie.oferta.respuesta', 'oferta_id', "Respuestas de peticiones de Oferta", readonly=True
-        ),
+        'bloque_ids': fields.one2many('giscedata.omie.oferta.bloque', 'oferta_id', "Bloques de Oferta")
     }
 
 

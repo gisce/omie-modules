@@ -13,7 +13,6 @@
                     <field name="ret"/>
                     <field name="ctn"/>
                     <field name="prc"/>
-                    <field name="oferta_id"/>
 			    </tree>
             </field>
         </record>
@@ -34,60 +33,6 @@
             </field>
         </record>
         <!--FIN OMIE OFERTA BLOQUE-->
-        <!--OMIE OFERTA PETICIÓN-->
-        <record model="ir.ui.view" id="giscedata_omie_oferta_respuesta_tree">
-            <field name="name">giscedata.omie.oferta.respuesta.tree</field>
-            <field name="model">giscedata.omie.oferta.respuesta</field>
-            <field name="type">tree</field>
-            <field name="arch" type="xml">
-                <tree string="Petición de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
-                    <field name="id_mensaje"/>
-                    <field name="fecha_mensaje"/>
-                    <field name="id_remitente"/>
-                    <field name="id_mensaje_origen"/>
-                    <field name="ver_mensaje_origen"/>
-                    <field name="id_remitente_origen"/>
-                    <field name="codigo_respuesta"/>
-                    <field name="texto_respuesta"/>
-                    <field name="num_ofertas_procesadas"/>
-                    <field name="num_ofertas_correctas"/>
-                    <field name="oferta_id"/>
-                    <field name="cod_transaccion"/>
-                    <field name="ver_transaccion"/>
-			    </tree>
-            </field>
-        </record>
-        <record model="ir.ui.view" id="giscedata_omie_oferta_respuesta_form">
-            <field name="name">giscedata.omie.oferta.respuesta.form</field>
-            <field name="model">giscedata.omie.oferta.respuesta</field>
-            <field name="type">form</field>
-            <field name="arch" type="xml">
-                <form string="Petición de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
-                    <field name="id_mensaje"/>
-                    <field name="fecha_mensaje"/>
-                    <field name="id_remitente"/>
-                    <field name="id_mensaje_origen"/>
-                    <field name="ver_mensaje_origen"/>
-                    <field name="id_remitente_origen"/>
-                    <field name="codigo_respuesta"/>
-                    <field name="texto_respuesta"/>
-                    <field name="num_ofertas_procesadas"/>
-                    <field name="num_ofertas_correctas"/>
-                    <field name="oferta_id"/>
-                    <field name="cod_transaccion"/>
-                    <field name="ver_transaccion"/>
-                </form>
-            </field>
-        </record>
-        <record model="ir.actions.act_window" id="action_listar_respuestas_ofertas">
-            <field name="name">Respuestas de Peticiones de Ofertas de OMIE</field>
-            <field name="res_model">giscedata.omie.oferta.respuesta</field>
-            <field name="src_model">giscedata.omie.oferta.respuesta</field>
-            <field name="view_type">form</field>
-            <field name="view_mode">tree,form</field>
-        </record>
-        <menuitem name="Respuestas de Peticiones de Ofertas de OMIE" id="listado_respuestas_ofertas" action="action_listar_respuestas_ofertas"/>
-        <!--FIN OMIE OFERTA PETICIÓN-->
         <!--OMIE OFERTA-->
         <record model="ir.ui.view" id="giscedata_omie_oferta_tree">
             <field name="name">giscedata.omie.oferta.tree</field>
@@ -114,7 +59,6 @@
                     <field name="uni_precio"/>
                     <field name="comentario_oferta"/>
                     <field name="bloque_ids" nolabel="1"/>
-                    <field name="respuesta_ids"/>
 			    </tree>
             </field>
         </record>
@@ -124,33 +68,59 @@
             <field name="type">form</field>
             <field name="arch" type="xml">
                 <form string="Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
-                    <group string="Mensaje" icon="message" colspan="4" attrs="{'readonly':[('state','=','enviada')]}">
-                        <field name="id_mensaje"/>
-                        <field name="ver_mensaje"/>
-                        <field name="id_remitente"/>
-                        <field name="fecha_mensaje" colspan="2" attrs="{'invisible':[('state','=','no_enviada')]}"/>
-                    </group>
-                    <group string="Información Oferta" icon="file-info" colspan="2" attrs="{'readonly':[('state','=','enviada')]}">
-                        <field name="id_oferta" colspan="2"/>
-                        <field name="clase_oferta" colspan="2"/>
-                        <field name="comentario_oferta" colspan="2"/>
-                        <field name="ind_defecto" colspan="2"/>
-                    </group>
-                    <group string="Información Unidad" icon="info-circle" colspan="2" attrs="{'readonly':[('state','=','enviada')]}">
-                        <field name="id_unidad"/>
-                        <field name="cod_min_unidad"/>
-                        <field name="area_unidad"/>
-                        <field name="tipo_unidad"/>
-                    </group>
-                    <group string="Validez" icon="calendar-check" colspan="2" attrs="{'readonly':[('state','=','enviada')]}">
-                        <field name="tipo_mercado"/>
-                        <field name="fecha_sesion"/>
-                    </group>
-                    <group attrs="{'readonly':[('state','=','enviada')]}">
-                        <field name="state" colspan="2"/>
-                        <button string="Enviar Oferta" name="enviar_oferta" type="object" primary="1" icon="send" colspan="4"/>
-                        <field name="bloque_ids" nolabel="1"/>
-                    </group>
+                    <notebook>
+						<page string="Oferta">
+                            <group col="10">
+                                <group string="Mensaje" icon="message" col="10" colspan="10" attrs="{'readonly':[('state','=','enviada')]}">
+                                    <field name="id_mensaje" colspan="2"/>
+                                    <field name="ver_mensaje" colspan="2"/>
+                                    <field name="id_remitente" colspan="3"/>
+                                    <field name="fecha_mensaje" colspan="3" attrs="{'invisible':[('state','=','no_enviada')]}"/>
+                                </group>
+                                <group string="Información Oferta" icon="file-info" col="10" colspan="5" attrs="{'readonly':[('state','=','enviada')]}">
+                                    <field name="id_oferta" colspan="2"/>
+                                    <field name="ind_defecto" colspan="2"/>
+                                    <field name="clase_oferta" colspan="6"/>
+                                    <field name="comentario_oferta" colspan="10"/>
+                                </group>
+                                <group string="Información Unidad" icon="info-circle" col="10" colspan="5" attrs="{'readonly':[('state','=','enviada')]}">
+                                    <field name="id_unidad" colspan="2"/>
+                                    <field name="cod_min_unidad" colspan="8"/>
+                                    <field name="area_unidad" colspan="4"/>
+                                    <field name="tipo_unidad" colspan="6"/>
+                                </group>
+                                <group string="Validez" icon="calendar-check" col="10" colspan="10" attrs="{'readonly':[('state','=','enviada')]}">
+                                    <field name="tipo_mercado" colspan="5"/>
+                                    <field name="fecha_sesion" colspan="5"/>
+                                </group>
+                            </group>
+                            <group attrs="{'readonly':[('state','=','enviada')]}">
+                                <field name="state" colspan="2"/>
+                                <button string="Enviar Oferta" name="enviar_oferta" type="object" primary="1" icon="send" colspan="4"/>
+                                <field name="bloque_ids" nolabel="1"/>
+                            </group>
+                        </page>
+                        <page string="Respuesta" attrs="{'invisible':[('state','!=','enviada')]}">
+                            <group col="10">
+                                <group string="Mensaje" icon="message" col="3" colspan="3">
+                                    <field name="id_mensaje_respuesta" colspan="3"/>
+                                    <field name="fecha_mensaje_respuesta" colspan="3"/>
+                                </group>
+                                <group string="Remitente" icon="mail" col="3" colspan="3">
+                                    <field name="id_remitente_respuesta" colspan="3"/>
+                                    <field name="id_remitente_origen" colspan="3"/>
+                                </group>
+                                <group string="Resultado" icon="clipboard-text" col="3" colspan="3">
+                                    <field name="num_ofertas_procesadas" colspan="3"/>
+                                    <field name="num_ofertas_correctas" colspan="3"/>
+                                </group>
+                                <group string="Respuesta" icon="send" col="10" colspan="10">
+                                    <field name="codigo_respuesta" colspan="10"/>
+                                    <field name="texto_respuesta" colspan="10"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
                 </form>
             </field>
         </record>
