@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openerp>
+    <data>
+        <record id="view_wizard_consulta_datos_usuario_form" model="ir.ui.view">
+            <field name="name">wizard.consulta.datos.usuario.form</field>
+            <field name="model">wizard.consulta.datos.usuario</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Consultar Datos del Usuario Actual">
+                    <field name="state" invisible="1"/>
+                    <group col="10" attrs="{'invisible': [('state', '!=', 'init')]}">
+                        <label string="Consultar los Datos del Usuario Actual" colspan="10"/>
+                        <button icon="gtk-cancel" special="cancel" string="Cancelar" type="object" colspan="5"/>
+				        <button icon="gtk-ok" name="consulta_datos_usuario" string="Consultar Datos" type="object" colspan="5"/>
+                    </group>
+                    <group col="10" attrs="{'invisible': [('state', '!=', 'end')]}">
+                        <group string="Agente" col="10" icon="user" colspan="10" attrs="{'readonly':[('state','=','end')]}">
+                            <field name="cod_agente" colspan="2"/>
+                            <field name="des_agente" colspan="6"/>
+                            <field name="perfil_agente" colspan="2"/>
+                        </group>
+                        <group col="10" string="Datos Tarjeta" icon="id" colspan="10" attrs="{'readonly':[('state','=','end')]}">
+                            <field name="cod_tarjeta" colspan="5"/>
+                            <field name="perfil_tarjeta" colspan="5"/>
+                            <group string="Usuario" col="6" icon="user-circle" colspan="6" attrs="{'readonly':[('state','=','end')]}">
+                                <field name="nombre_titular" colspan="2"/>
+                                <field name="apellidos_titular" colspan="3"/>
+                                <field name="email" colspan="5"/>
+                            </group>
+                            <group string="Validez" col="4" icon="clock" colspan="4" attrs="{'readonly':[('state','=','end')]}">
+                                <field name="fecha_alta" colspan="4"/>
+                                <field name="fecha_baja" colspan="4"/>
+                            </group>
+                        </group>
+                        <group string="Permisos" icon="license" colspan="10" attrs="{'readonly':[('state','=','end')]}">
+                            <field name="permisos_ids" nolabel="1"/>
+                        </group>
+                        <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" colspan="4"/>
+                    </group>
+                    <group col="4" attrs="{'invisible': [('state', '!=', 'error')]}">
+                        <label string="No se ha realizado correctamente la conexión con OMIE."/>
+                        <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" colspan="4"/>
+                    </group>
+                </form>
+            </field>
+        </record>
+        <record id="action_wizard_consulta_datos_usuario" model="ir.actions.act_window">
+            <field name="name">Consultar Datos del Usuario Actual</field>
+            <field name="res_model">wizard.consulta.datos.usuario</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="view_wizard_consulta_datos_usuario_form"/>
+            <field name="target">new</field>
+        </record>
+        <record id="value_consulta_datos_usuario" model="ir.values">
+            <field name="object" eval="1"/>
+            <field name="name">Consultar Datos del Usuario Actual</field>
+            <field name="key2">client_action_multi</field>
+            <field name="key">action</field>
+            <field name="value" eval="'ir.actions.act_window,'+str(ref('action_wizard_consulta_datos_usuario'))" />
+        </record>
+        <menuitem name="Consultar Datos del Usuario Actual" id="consulta_datos_usuario" action="action_wizard_consulta_datos_usuario"/>
+    </data>
+    <!-- PERMISOS USUARIO -->
+    <data>
+        <record model="ir.ui.view" id="giscedata_permisos_usuario_tree">
+            <field name="name">giscedata.permisos.usuario.tree</field>
+            <field name="model">giscedata.permisos.usuario</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Permisos de Usuario">
+                    <field name="codigo"/>
+                    <field name="perfil"/>
+			    </tree>
+            </field>
+        </record>
+        <record model="ir.ui.view" id="giscedata_permisos_usuario_form">
+            <field name="name">giscedata.permisos.usuario.form</field>
+            <field name="model">giscedata.permisos.usuario</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Permisos de Usuario">
+                    <field name="codigo"/>
+                    <field name="perfil"/>
+                </form>
+            </field>
+        </record>
+        <record model="ir.actions.act_window" id="action_permisos_usuario">
+            <field name="name">Permisos Usuario</field>
+            <field name="res_model">giscedata.permisos.usuario</field>
+            <field name="src_model">giscedata.permisos.usuario</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+    </data>
+</openerp>
