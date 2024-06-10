@@ -211,33 +211,33 @@ class GiscedataOmieOferta(osv.osv):
         # RESPUESTA
         'id_mensaje_respuesta': fields.char(
             'Mensaje Petición', help="Identificación del mensaje (libre para el creador del mensaje)", size=64,
-            required=True, readonly=True),
+            readonly=True),
         'fecha_mensaje_respuesta': fields.char(
             "Fecha Petición", size=32,
             help="Fecha y hora de generación de los datos para el mensaje (no de envío del mensaje en sí)",
-            required=True, readonly=True
+            readonly=True
         ),
         'id_remitente_respuesta': fields.char(
             "ID Remitente", size=16,
-            help="Código del Agente que envía la respuesta (OMEL)", required=True, readonly=True
+            help="Código del Agente que envía la respuesta (OMEL)", readonly=True
         ),
         'id_remitente_origen': fields.char(
             'ID Remitente Origen', size=16,
-            help="Código del Agente que envió el mensaje", required=True, readonly=True
+            help="Código del Agente que envió el mensaje", readonly=True
         ),
         # Respuesta
         'codigo_respuesta': fields.char(
-            'Código Respuesta', size=16, help="Código de la respuesta", required=True, readonly=True
+            'Código Respuesta', size=16, help="Código de la respuesta", readonly=True
         ),
         'texto_respuesta': fields.text(
-            'Texto Respuesta', help="Textos descriptivos de la respuesta", required=False, readonly=True
+            'Texto Respuesta', help="Textos descriptivos de la respuesta", readonly=True
         ),
         # ResumenOfertas
         'num_ofertas_procesadas': fields.char(
-            'Núm. Ofertas Procesadas', size=16, help="Número total de ofertas procesadas", required=True, readonly=True
+            'Núm. Ofertas Procesadas', size=16, help="Número total de ofertas procesadas", readonly=True
         ),
         'num_ofertas_correctas': fields.char(
-            'Núm. Ofertas Correctas', size=16, help="Número total de ofertas correctas", required=True, readonly=True
+            'Núm. Ofertas Correctas', size=16, help="Número total de ofertas correctas", readonly=True
         )
     }
 
@@ -315,10 +315,12 @@ class GiscedataOmieOferta(osv.osv):
         oferta_vals_filtered = self.delete_null_fields(cursor, uid, oferta_vals, context=context)
 
         list_bloques = []
+        bloque_lleno = False
         i = 1
         for bloque_id in oferta_vals_filtered.get('bloque_ids', []):
             bloque_vals = bloque_obj.read(cursor, uid, bloque_id, [], context=context)
             if bloque_vals.get('ctn') and bloque_vals.get('prc'):
+                bloque_lleno = True
                 dicc_bloque = {
                     "num": i,
                     "div": bloque_vals.get('div'),
@@ -329,6 +331,8 @@ class GiscedataOmieOferta(osv.osv):
                 }
                 list_bloques.append(dicc_bloque)
             i += 1
+        if not bloque_lleno:
+            raise osv.except_osv('Error', 'Se deben llenar los valores de los Bloques de Oferta usando el asistente.')
 
         oferta_dicc = {
             'IdMensaje': oferta_vals_filtered.get('id_mensaje'),
@@ -381,8 +385,8 @@ class GiscedataOmieOferta(osv.osv):
             'id_remitente_origen': res_oferta_dicc.get('IdRemitenteOrigen', {}).get('v', False),
             'codigo_respuesta': res_oferta_dicc.get('Respuesta', [{}])[0].get('CodigoRespuesta', {}).get('v', ''),
             'texto_respuesta': texto_respuesta,
-            'num_ofertas_procesadas': res_oferta_dicc.get('ResumenOfertas', {}).get('NumOfertasProcesadas', {}).get('v', False),
-            'num_ofertas_correctas': res_oferta_dicc.get('ResumenOfertas', {}).get('NumOfertasCorrectas', {}).get('v', False),
+            'num_ofertas_procesadas': str(res_oferta_dicc.get('ResumenOfertas', {}).get('NumOfertasProcesadas', {}).get('v', 0)),
+            'num_ofertas_correctas': str(res_oferta_dicc.get('ResumenOfertas', {}).get('NumOfertasCorrectas', {}).get('v', 0)),
         }
         return respuesta_dicc
 
