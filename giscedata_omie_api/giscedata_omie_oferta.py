@@ -85,7 +85,7 @@ class GiscedataOmieOferta(osv.osv):
 
     _name = 'giscedata.omie.oferta'
     _rec_name = 'id_oferta'
-    _description = """Representa Ofertas o Ejecuciones de Contratos Bilaterales Físicos."""
+    _description = """Ofertas o Ejecuciones de Contratos Bilaterales Físicos."""
 
     def create(self, cursor, uid, vals, context=None):
         if context is None:
@@ -98,17 +98,18 @@ class GiscedataOmieOferta(osv.osv):
             'id_oferta': 'OF' + str(oferta_id)
         }
         self.write(cursor, uid, [oferta_id], write_vals, context=context)
-        bloque_ids = []
-        for i in range(1, 26):
-            create_vals = {
-                'num': i,
-                'div': 'N',
-                'ret': 'N',
-                'per': str(i),
-                'oferta_id': oferta_id,
-            }
-            bloque_id = bloque_obj.create(cursor, uid, create_vals, context=context)
-            bloque_ids.append(bloque_id)
+        if not context.get('no_crear_bloques', True):
+            bloque_ids = []
+            for i in range(1, 26):
+                create_vals = {
+                    'num': i,
+                    'div': 'N',
+                    'ret': 'N',
+                    'per': str(i),
+                    'oferta_id': oferta_id,
+                }
+                bloque_id = bloque_obj.create(cursor, uid, create_vals, context=context)
+                bloque_ids.append(bloque_id)
         return oferta_id
 
     def default_get(self, cursor, uid, fields, context=None):
@@ -404,6 +405,12 @@ class GiscedataOmieOferta(osv.osv):
         res = {x: y for x, y in oferta_dicc.items() if y}
         return res
 
+    def update_origen(self, cursor, uid, oferta_id, context=None):
+        if context is None:
+            context = {}
+
+        return True
+
     def enviar_oferta(self, cursor, uid, ids, context=None):
         if context is None:
             context = {}
@@ -427,6 +434,7 @@ class GiscedataOmieOferta(osv.osv):
                 }
                 write_vals.update(respuesta_dicc)
                 oferta_obj.write(cursor, uid, [oferta_id], write_vals, context=context)
+                self.update_origen(cursor, uid, oferta_id, context=context)
             except Exception as e:
                 raise osv.except_osv('Error:', e)
 
