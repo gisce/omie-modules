@@ -24,11 +24,11 @@
             <field name="arch" type="xml">
                 <form string="Bloque de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
                     <group colspan="8">
-                        <field name="per" colspan="8"/>
-                        <field name="ctn" colspan="8"/>
-                        <field name="prc" colspan="8"/>
-                        <field name="div" colspan="8"/>
-                        <field name="ret" colspan="8"/>
+                        <field name="per" colspan="8" readonly="1"/>
+                        <field name="ctn" colspan="8" readonly="1"/>
+                        <field name="prc" colspan="8" readonly="1"/>
+                        <field name="div" colspan="8" readonly="1"/>
+                        <field name="ret" colspan="8" readonly="1"/>
                     </group>
                 </form>
             </field>

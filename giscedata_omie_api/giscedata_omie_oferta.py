@@ -316,12 +316,10 @@ class GiscedataOmieOferta(osv.osv):
         oferta_vals_filtered = self.delete_null_fields(cursor, uid, oferta_vals, context=context)
 
         list_bloques = []
-        bloque_lleno = False
         i = 1
         for bloque_id in oferta_vals_filtered.get('bloque_ids', []):
             bloque_vals = bloque_obj.read(cursor, uid, bloque_id, [], context=context)
             if bloque_vals.get('ctn') and bloque_vals.get('prc'):
-                bloque_lleno = True
                 dicc_bloque = {
                     "num": i,
                     "div": bloque_vals.get('div'),
@@ -332,8 +330,6 @@ class GiscedataOmieOferta(osv.osv):
                 }
                 list_bloques.append(dicc_bloque)
             i += 1
-        if not bloque_lleno:
-            raise osv.except_osv('Error', 'Se deben llenar los valores de los Bloques de Oferta usando el asistente.')
 
         oferta_dicc = {
             'IdMensaje': oferta_vals_filtered.get('id_mensaje'),
