@@ -44,6 +44,7 @@
                     <field name="state"/>
                     <field name="id_mensaje"/>
                     <field name="ver_mensaje"/>
+                    <field name="origen"/>
                     <field name="fecha_mensaje"/>
                     <field name="id_remitente"/>
                     <field name="id_oferta"/>
@@ -97,6 +98,7 @@
                             </group>
                             <group attrs="{'readonly':[('state','=','enviada')]}">
                                 <field name="state" colspan="2"/>
+                                <field name="origen" colspan="4" select="1"/>
                                 <button string="Enviar Oferta" name="enviar_oferta" type="object" primary="1" icon="send" colspan="4"/>
                                 <field name="bloque_ids" nolabel="1"/>
                             </group>

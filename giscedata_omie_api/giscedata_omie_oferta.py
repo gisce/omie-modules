@@ -80,6 +80,8 @@ PERIODO_DIA = [
     ('25', '25'),
 ]
 
+ORIGEN_OFERTA = []
+
 
 class GiscedataOmieOferta(osv.osv):
 
@@ -131,6 +133,11 @@ class GiscedataOmieOferta(osv.osv):
             'tipo_mercado': 'MD',
         }
         return res
+
+    def _get_origen_selection(self, cursor, uid, context=None):
+        if context is None:
+            context = {}
+        return []
 
     _columns = {
         'id_mensaje': fields.char(
@@ -239,7 +246,8 @@ class GiscedataOmieOferta(osv.osv):
         ),
         'num_ofertas_correctas': fields.char(
             'Núm. Ofertas Correctas', size=16, help="Número total de ofertas correctas", readonly=True
-        )
+        ),
+        'origen': fields.reference('Origen', selection=_get_origen_selection, size=128),
     }
 
     defaults = {
@@ -319,16 +327,15 @@ class GiscedataOmieOferta(osv.osv):
         i = 1
         for bloque_id in oferta_vals_filtered.get('bloque_ids', []):
             bloque_vals = bloque_obj.read(cursor, uid, bloque_id, [], context=context)
-            if bloque_vals.get('ctn') and bloque_vals.get('prc'):
-                dicc_bloque = {
-                    "num": i,
-                    "div": bloque_vals.get('div'),
-                    "ret": bloque_vals.get('ret'),
-                    "Per": bloque_vals.get('per'),
-                    "Ctn": bloque_vals.get('ctn'),
-                    "Prc": bloque_vals.get('prc')
-                }
-                list_bloques.append(dicc_bloque)
+            dicc_bloque = {
+                "num": i,
+                "div": bloque_vals.get('div'),
+                "ret": bloque_vals.get('ret'),
+                "Per": bloque_vals.get('per'),
+                "Ctn": bloque_vals.get('ctn', 0.0),
+                "Prc": bloque_vals.get('prc', 0.0)
+            }
+            list_bloques.append(dicc_bloque)
             i += 1
 
         oferta_dicc = {
@@ -371,16 +378,26 @@ class GiscedataOmieOferta(osv.osv):
             context = {}
 
         texto_respuesta = ''
-        list_texto_respuesta = res_oferta_dicc.get('RespuestaSerie', [{}])[0].get('Respuesta', [{}])[0].get('TextoRespuesta', [])
+        list_texto_respuesta = res_oferta_dicc.get('RespuestaSerie', [])
+        if list_texto_respuesta:
+            list_texto_respuesta = list_texto_respuesta[0].get('Respuesta', [])
+            if list_texto_respuesta:
+                list_texto_respuesta = list_texto_respuesta[0].get('TextoRespuesta', [])
         for aux in list_texto_respuesta:
             texto_respuesta += aux + '\n'
+
+        codigo_respuesta = res_oferta_dicc.get('Respuesta', [])
+        if codigo_respuesta:
+            codigo_respuesta = codigo_respuesta[0].get('CodigoRespuesta', {}).get('v', '')
+        else:
+            codigo_respuesta = ''
 
         respuesta_dicc = {
             'id_mensaje_respuesta': res_oferta_dicc.get('IdMensaje', {}).get('v', False),
             'fecha_mensaje_respuesta': res_oferta_dicc.get('FechaMensaje', {}).get('v', False),
             'id_remitente_respuesta': res_oferta_dicc.get('IdRemitente', {}).get('v', False),
             'id_remitente_origen': res_oferta_dicc.get('IdRemitenteOrigen', {}).get('v', False),
-            'codigo_respuesta': res_oferta_dicc.get('Respuesta', [{}])[0].get('CodigoRespuesta', {}).get('v', ''),
+            'codigo_respuesta': codigo_respuesta,
             'texto_respuesta': texto_respuesta,
             'num_ofertas_procesadas': str(res_oferta_dicc.get('ResumenOfertas', {}).get('NumOfertasProcesadas', {}).get('v', 0)),
             'num_ofertas_correctas': str(res_oferta_dicc.get('ResumenOfertas', {}).get('NumOfertasCorrectas', {}).get('v', 0)),
