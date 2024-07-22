@@ -432,10 +432,7 @@ class GiscedataOmieOferta(osv.osv):
 
         for oferta_id in ids:
             oferta_dicc = oferta_obj.mensaje_oferta_md_dicc(cursor, uid, oferta_id, context=context)
-            client = ClientOMIE(
-                crt_path='/home/aorellana/proyectos/OMIE/omie-base/omie/data/omie.cert',
-                crt_key='/home/aorellana/proyectos/OMIE/omie-base/omie/data/omie.key'
-            )
+            client = ClientOMIE()
             try:
                 res_oferta_zeep = client.ServicioAltaOfertasMD(MensajeOfertasMD=oferta_dicc)
                 res_oferta_dicc = helpers.serialize_object(res_oferta_zeep)

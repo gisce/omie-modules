@@ -35,10 +35,7 @@ class WizardConsultaDatosUsuario(osv.osv_memory):
         ctx.update({'prefetch': False})
         wiz_brw = self.browse(cursor, uid, wiz_id, context=ctx)
 
-        client = ClientOMIE(
-            crt_path='/home/aorellana/proyectos/OMIE/omie-base/omie/data/omie.cert',
-            crt_key='/home/aorellana/proyectos/OMIE/omie-base/omie/data/omie.key'
-        )
+        client = ClientOMIE()
         try:
             result = client.ServicioConsultaDatosUsuario()
             res_serialized = helpers.serialize_object(result)
