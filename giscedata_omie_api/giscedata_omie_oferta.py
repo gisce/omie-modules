@@ -454,7 +454,9 @@ class GiscedataOmieOferta(osv.osv):
 
     _columns = {
         # Blq
-        'bloque_ids': fields.one2many('giscedata.omie.oferta.bloque', 'oferta_id', "Bloques de Oferta")
+        'bloque_ids': fields.one2many(
+            'giscedata.omie.oferta.bloque', 'oferta_id', "Bloques de Oferta", ondelete='cascade'
+        ),
     }
 
 
