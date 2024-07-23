@@ -388,6 +388,9 @@ class GiscedataOmieOferta(osv.osv):
 
         codigo_respuesta = res_oferta_dicc.get('Respuesta', [])
         if codigo_respuesta:
+            list_texto_respuesta = codigo_respuesta[0].get('TextoRespuesta', [])
+            for aux in list_texto_respuesta:
+                texto_respuesta += aux + '\n'
             codigo_respuesta = codigo_respuesta[0].get('CodigoRespuesta', {}).get('v', '')
         else:
             codigo_respuesta = ''
