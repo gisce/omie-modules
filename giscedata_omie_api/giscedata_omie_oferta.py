@@ -282,7 +282,7 @@ class GiscedataOmieOfertaBloque(osv.osv):
             help="Seleccionar el periodo del día para el que quiere hacer la oferta", required=True),
         'ctn': fields.float("Energía de la Oferta", digits=(8, 3), help="Energía de la oferta, sin signo"),
         'prc': fields.float("Precio de la Oferta", digits=(8, 3)),
-        'oferta_id': fields.many2one('giscedata.omie.oferta', 'ID Oferta'),
+        'oferta_id': fields.many2one('giscedata.omie.oferta', 'ID Oferta', ondelete='cascade'),
     }
 
 
