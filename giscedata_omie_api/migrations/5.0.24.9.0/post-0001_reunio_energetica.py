@@ -23,27 +23,30 @@ def up(cursor, installed_version):
     pool.get("wizard.llenar.horas.oferta")._auto_init(cursor, context={'module': 'giscedata_omie_api'})
     logger.info("Table created succesfully.")
 
-    ##UPDATAR UNA PART DE L'XML (POSAR LA ID)##
-    logger.info("Updating XMLs")
-    list_of_records = [
-        "giscedata_omie_oferta_tree",
-        "giscedata_omie_oferta_form",
-    ]
-    load_data_records(
-        cursor, 'giscedata_omie_api', 'giscedata_omie_oferta_view.xml', list_of_records, mode='update'
+    ##UPDATAR UN MODUL NOU AL CREAR-LO O AFEGIR UNA COLUMNA##
+    logger.info("Creating table: giscedata.omie.oferta.hora")
+    pool.get("giscedata.omie.oferta.hora")._auto_init(cursor, context={'module': 'giscedata_omie_api'})
+    logger.info("Table created succesfully.")
+
+    ##UPATAR UN XML SENCER##
+    logger.info("Updating XML giscedata_omie_oferta_view.xml")
+    load_data(
+        cursor, 'giscedata_omie_api', 'wizard/wizard_llenar_horas_oferta_view.xml', idref=None, mode='update'
     )
     logger.info("XMLs succesfully updated.")
 
-    ##UPDATAR UNA PART DE L'XML (POSAR LA ID)##
-    logger.info("Updating XMLs")
-    list_of_records = [
-        "view_wizard_llenar_horas_oferta_form",
-    ]
-    load_data_records(
-        cursor, 'giscedata_omie_api', 'wizard/wizard_llenar_horas_oferta_view.xml', list_of_records, mode='update'
+    ##UPATAR UN XML SENCER##
+    logger.info("Updating XML giscedata_omie_oferta_view.xml")
+    load_data(
+        cursor, 'giscedata_omie_api', 'giscedata_omie_oferta_view.xml', idref=None, mode='update'
     )
     logger.info("XMLs succesfully updated.")
 
+    logger.info("Updating access CSV")
+    load_data(
+        cursor, 'giscedata_omie_api', 'security/ir.model.access.csv', idref=None, mode='update'
+    )
+    logger.info("CSV succesfully updated.")
 
 def down(cursor, installed_version):
     pass
