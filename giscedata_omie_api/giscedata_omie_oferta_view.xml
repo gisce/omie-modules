@@ -73,7 +73,7 @@
             <field name="arch" type="xml">
                 <form string="Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
                     <notebook>
-						<page string="Oferta">
+                        <page string="Oferta">
                             <group col="10">
                                 <group string="Mensaje" icon="message" col="10" colspan="10" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error'))]}">
                                     <field name="id_mensaje" colspan="2"/>
