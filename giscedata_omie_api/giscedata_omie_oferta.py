@@ -80,7 +80,11 @@ PERIODO_DIA = [
     ('25', '25'),
 ]
 
-ORIGEN_OFERTA = []
+ESTADO_OFERTA = [
+    ('no_enviada', 'No Enviada'),
+    ('enviada', 'Enviada'),
+    ('enviada_error', 'Enviada Con Errores')
+]
 
 
 class GiscedataOmieOferta(osv.osv):
@@ -147,7 +151,7 @@ class GiscedataOmieOferta(osv.osv):
         'ver_mensaje': fields.integer(
             "Número Versión Mensaje", help="Número de versión de un mensaje", required=False
         ),
-        'fecha_mensaje': fields.datetime(
+        'fecha_mensaje': fields.date(
             "Fecha Mensaje",
             help="Fecha y hora de generación de los datos para el mensaje (no de envío del mensaje en sí)",
             required=False, readonly=True
@@ -185,6 +189,16 @@ class GiscedataOmieOferta(osv.osv):
         'tipo_mercado': fields.selection(
             TIPO_MERCADO, "Tipo de Mercado", help="MD: Mercado Diario, MI: Mercado Intradiario", required=True
         ),
+        'valida': fields.boolean(
+            'Valida', readonly=True, help="La oferta será valida si no ha sido sustituida y se ha enviado procesado "
+                                          "y aceptado por parte de OMIE."
+        ),
+        'sustituida': fields.boolean(
+            'Sustituida', readonly=True, help="La oferta será sustituida cuando se haya mandado una oferta con el "
+                                              "mismo código de oferta y una versión superior. Si la oferta no se "
+                                              "procesa o se acepta, por parte de OMIE, también será marcada como "
+                                              "sustituida."
+        ),
         # Sesion
         'fecha_sesion': fields.date(
             "Fecha Sesión", help="Fecha del día que queremos ofertar", required=True
@@ -213,7 +227,7 @@ class GiscedataOmieOferta(osv.osv):
             "Comentario de la Oferta", size=30, help="Comentario de la oferta", required=False
         ),
         'state': fields.selection(
-            [('no_enviada', 'No Enviada'), ('enviada', 'Enviada')], 'Estado Envio',
+            ESTADO_OFERTA, 'Estado Envio',
             help="Enviada/No Enviada", readonly=True
         ),
         # RESPUESTA
@@ -324,11 +338,10 @@ class GiscedataOmieOferta(osv.osv):
         oferta_vals_filtered = self.delete_null_fields(cursor, uid, oferta_vals, context=context)
 
         list_bloques = []
-        i = 1
         for bloque_id in oferta_vals_filtered.get('bloque_ids', []):
             bloque_vals = bloque_obj.read(cursor, uid, bloque_id, [], context=context)
             dicc_bloque = {
-                "num": i,
+                "num": 1,
                 "div": bloque_vals.get('div'),
                 "ret": bloque_vals.get('ret'),
                 "Per": bloque_vals.get('per'),
@@ -336,7 +349,6 @@ class GiscedataOmieOferta(osv.osv):
                 "Prc": bloque_vals.get('prc', 0.0)
             }
             list_bloques.append(dicc_bloque)
-            i += 1
 
         oferta_dicc = {
             'IdMensaje': oferta_vals_filtered.get('id_mensaje'),
@@ -421,7 +433,7 @@ class GiscedataOmieOferta(osv.osv):
         res = {x: y for x, y in oferta_dicc.items() if y}
         return res
 
-    def update_origen(self, cursor, uid, oferta_id, context=None):
+    def update_origen(self, cursor, uid, oferta_id, state, context=None):
         if context is None:
             context = {}
 
@@ -435,19 +447,40 @@ class GiscedataOmieOferta(osv.osv):
 
         for oferta_id in ids:
             oferta_dicc = oferta_obj.mensaje_oferta_md_dicc(cursor, uid, oferta_id, context=context)
-            client = ClientOMIE()
+            client = ClientOMIE(crt_path='/home/aorellana/proyectos/OMIE/omie-base/omie/data/omie.cert',
+                crt_key='/home/aorellana/proyectos/OMIE/omie-base/omie/data/omie.key')
             try:
                 res_oferta_zeep = client.ServicioAltaOfertasMD(MensajeOfertasMD=oferta_dicc)
                 res_oferta_dicc = helpers.serialize_object(res_oferta_zeep)
                 respuesta_dicc = self.crear_respuesta_oferta(cursor, uid, oferta_id, res_oferta_dicc, context=context)
+                if int(respuesta_dicc['num_ofertas_correctas']) == 0:
+                    state = 'enviada_error'
+                    valida = False
+                    sustituida = True
+                else:
+                    state = 'enviada'
+                    valida = True
+                    sustituida = False
                 # Añadir fecha_mensaje y cambiar estado en la oferta enviada
                 write_vals = {
                     'fecha_mensaje': datetime.today().strftime('%Y-%m-%d'),
-                    'state': 'enviada',
+                    'state': state,
+                    'valida': valida,
+                    'sustituida': sustituida,
                 }
                 write_vals.update(respuesta_dicc)
                 oferta_obj.write(cursor, uid, [oferta_id], write_vals, context=context)
-                self.update_origen(cursor, uid, oferta_id, context=context)
+                self.update_origen(cursor, uid, oferta_id, state, context=context)
+                if valida:
+                    search_vals = [
+                        ('tipo_mercado', '=', oferta_dicc.get('Oferta').get('Validez').get('TipoMercado')),
+                        ('id_remitente', '=', oferta_dicc.get('IdRemitente')),
+                        ('fecha_sesion', '=', oferta_dicc.get('Oferta').get('Validez').get('Sesion').get('fecha')),
+                        ('id_unidad', '=', oferta_dicc.get('Oferta').get('IdUnidad').get('v')),
+                        ('valida', '=', True),
+                    ]
+                    oferta_ids = oferta_obj.search(cursor, uid, search_vals, context=context)
+                    oferta_obj.write(cursor, uid, oferta_ids, {'sustituida': True, 'valida': False}, context=context)
             except Exception as e:
                 raise osv.except_osv('Error:', e)
 
