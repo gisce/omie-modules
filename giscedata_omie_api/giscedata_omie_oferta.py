@@ -96,7 +96,7 @@ class GiscedataOmieOferta(osv.osv):
     def create(self, cursor, uid, vals, context=None):
         if context is None:
             context = {}
-        bloque_obj = self.pool.get('giscedata.omie.oferta.bloque')
+        hora_obj = self.pool.get('giscedata.omie.oferta.hora')
 
         oferta_id = super(osv.osv, self).create(cursor, uid, vals, context=context)
         write_vals = {
@@ -104,8 +104,8 @@ class GiscedataOmieOferta(osv.osv):
             'id_oferta': 'OF' + str(oferta_id)
         }
         self.write(cursor, uid, [oferta_id], write_vals, context=context)
-        if not context.get('no_crear_bloques', True):
-            bloque_ids = []
+        if not context.get('no_crear_horas', True):
+            hora_ids = []
             for i in range(1, 26):
                 create_vals = {
                     'num': i,
@@ -114,8 +114,8 @@ class GiscedataOmieOferta(osv.osv):
                     'per': str(i),
                     'oferta_id': oferta_id,
                 }
-                bloque_id = bloque_obj.create(cursor, uid, create_vals, context=context)
-                bloque_ids.append(bloque_id)
+                hora_id = hora_obj.create(cursor, uid, create_vals, context=context)
+                hora_ids.append(hora_id)
         return oferta_id
 
     def default_get(self, cursor, uid, fields, context=None):
@@ -275,20 +275,22 @@ class GiscedataOmieOferta(osv.osv):
         'grad_bajada': lambda *a: 0.0,
         'grad_subida': lambda *a: 0.0,
         'default_values_set': lambda *a: True,
+        'valida': lambda *a: False,
+        'sustituida': lambda *a: False,
     }
 
 
 GiscedataOmieOferta()
 
 
-class GiscedataOmieOfertaBloque(osv.osv):
+class GiscedataOmieOfertaHora(osv.osv):
 
-    _name = 'giscedata.omie.oferta.bloque'
+    _name = 'giscedata.omie.oferta.hora'
     _rec_name = 'oferta_id'
     _description = """Representa una oferta por hora de un dia concreto."""
 
     _columns = {
-        'num': fields.integer("Número de Bloque"),
+        'num': fields.integer("Hora del Día"),
         'div': fields.selection(SI_NO, "Es divisible", required=True),
         'ret': fields.selection(SI_NO, "Es retirable", required=True),
         'per': fields.selection(
@@ -300,7 +302,7 @@ class GiscedataOmieOfertaBloque(osv.osv):
     }
 
 
-GiscedataOmieOfertaBloque()
+GiscedataOmieOfertaHora()
 
 
 class GiscedataOmieOferta(osv.osv):
@@ -314,7 +316,7 @@ class GiscedataOmieOferta(osv.osv):
         if default is None:
             default = {}
 
-        default['bloque_ids'] = [(5, 0, 0)]
+        default['hora_ids'] = [(5, 0, 0)]
         default['state'] = 'no_enviada'
         default['id_mensaje_respuesta'] = False
         default['fecha_mensaje_respuesta'] = False
@@ -332,23 +334,23 @@ class GiscedataOmieOferta(osv.osv):
             context = {}
 
         oferta_obj = self.pool.get('giscedata.omie.oferta')
-        bloque_obj = self.pool.get('giscedata.omie.oferta.bloque')
+        hora_obj = self.pool.get('giscedata.omie.oferta.hora')
 
         oferta_vals = oferta_obj.read(cursor, uid, oferta_id, [], context=context)
         oferta_vals_filtered = self.delete_null_fields(cursor, uid, oferta_vals, context=context)
 
-        list_bloques = []
-        for bloque_id in oferta_vals_filtered.get('bloque_ids', []):
-            bloque_vals = bloque_obj.read(cursor, uid, bloque_id, [], context=context)
-            dicc_bloque = {
+        list_horas = []
+        for hora_id in oferta_vals_filtered.get('hora_ids', []):
+            hora_vals = hora_obj.read(cursor, uid, hora_id, [], context=context)
+            dicc_hora = {
                 "num": 1,
-                "div": bloque_vals.get('div'),
-                "ret": bloque_vals.get('ret'),
-                "Per": bloque_vals.get('per'),
-                "Ctn": bloque_vals.get('ctn', 0.0),
-                "Prc": bloque_vals.get('prc', 0.0)
+                "div": hora_vals.get('div'),
+                "ret": hora_vals.get('ret'),
+                "Per": hora_vals.get('per'),
+                "Ctn": hora_vals.get('ctn', 0.0),
+                "Prc": hora_vals.get('prc', 0.0)
             }
-            list_bloques.append(dicc_bloque)
+            list_horas.append(dicc_hora)
 
         oferta_dicc = {
             'IdMensaje': oferta_vals_filtered.get('id_mensaje'),
@@ -378,7 +380,7 @@ class GiscedataOmieOferta(osv.osv):
                 'UniGradiente': 'MW/min',
                 'Comentario': oferta_vals_filtered.get('comentario_oferta', ""),
                 'Detalle': {
-                    'Blq': list_bloques
+                    'Blq': list_horas
                 }
             },
         }
@@ -447,6 +449,23 @@ class GiscedataOmieOferta(osv.osv):
 
         for oferta_id in ids:
             oferta_dicc = oferta_obj.mensaje_oferta_md_dicc(cursor, uid, oferta_id, context=context)
+            # Buscamos las ofertas enviadas anteriormente
+            search_vals = [
+                ('tipo_mercado', '=', oferta_dicc.get('Oferta').get('Validez').get('TipoMercado')),
+                ('id_remitente', '=', oferta_dicc.get('IdRemitente')),
+                ('fecha_sesion', '=', oferta_dicc.get('Oferta').get('Validez').get('Sesion').get('fecha')),
+                ('id_unidad', '=', oferta_dicc.get('Oferta').get('IdUnidad').get('v')),
+                ('valida', '=', True),
+                ('sustituida', '=', False),
+                ('state', '=', 'enviada'),
+            ]
+            oferta_ids = oferta_obj.search(cursor, uid, search_vals, context=context)
+            if oferta_ids:
+                # Cogemos la versión mas grande de las ofertas encontradas
+                version_oferta = oferta_obj.read(cursor, uid, oferta_ids, ['ver_mensaje'], context=context)
+                max_version = max(int(oferta['ver_mensaje']) for oferta in version_oferta)
+                oferta_dicc['VerMensaje'] = max_version + 1
+
             client = ClientOMIE(crt_path='/home/aorellana/proyectos/OMIE/omie-base/omie/data/omie.cert',
                 crt_key='/home/aorellana/proyectos/OMIE/omie-base/omie/data/omie.key')
             try:
@@ -471,15 +490,8 @@ class GiscedataOmieOferta(osv.osv):
                 write_vals.update(respuesta_dicc)
                 oferta_obj.write(cursor, uid, [oferta_id], write_vals, context=context)
                 self.update_origen(cursor, uid, oferta_id, state, context=context)
-                if valida:
-                    search_vals = [
-                        ('tipo_mercado', '=', oferta_dicc.get('Oferta').get('Validez').get('TipoMercado')),
-                        ('id_remitente', '=', oferta_dicc.get('IdRemitente')),
-                        ('fecha_sesion', '=', oferta_dicc.get('Oferta').get('Validez').get('Sesion').get('fecha')),
-                        ('id_unidad', '=', oferta_dicc.get('Oferta').get('IdUnidad').get('v')),
-                        ('valida', '=', True),
-                    ]
-                    oferta_ids = oferta_obj.search(cursor, uid, search_vals, context=context)
+                if oferta_ids and valida:
+                    # Marcamos como no válidas y sustituidas las ofertas enviadas anteriormente
                     oferta_obj.write(cursor, uid, oferta_ids, {'sustituida': True, 'valida': False}, context=context)
             except Exception as e:
                 raise osv.except_osv('Error:', e)
@@ -487,8 +499,8 @@ class GiscedataOmieOferta(osv.osv):
 
     _columns = {
         # Blq
-        'bloque_ids': fields.one2many(
-            'giscedata.omie.oferta.bloque', 'oferta_id', "Bloques de Oferta", ondelete='cascade'
+        'hora_ids': fields.one2many(
+            'giscedata.omie.oferta.hora', 'oferta_id', "horas de Oferta", ondelete='cascade'
         ),
     }
 

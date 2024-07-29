@@ -2,13 +2,13 @@
 <openerp>
     <data>
         <menuitem name="OMIE" id="menu_omie"/>
-        <!--OMIE OFERTA BLOQUE-->
-        <record model="ir.ui.view" id="giscedata_omie_oferta_bloque_tree">
-            <field name="name">giscedata.omie.oferta.bloque.tree</field>
-            <field name="model">giscedata.omie.oferta.bloque</field>
+        <!--OMIE OFERTA HORA-->
+        <record model="ir.ui.view" id="giscedata_omie_oferta_hora_tree">
+            <field name="name">giscedata.omie.oferta.hora.tree</field>
+            <field name="model">giscedata.omie.oferta.hora</field>
             <field name="type">tree</field>
             <field name="arch" type="xml">
-                <tree string="Bloque de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                <tree string="Horas de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
                     <field name="per"/>
                     <field name="div"/>
                     <field name="ret"/>
@@ -17,12 +17,12 @@
 			    </tree>
             </field>
         </record>
-        <record model="ir.ui.view" id="giscedata_omie_oferta_bloque_form">
-            <field name="name">giscedata.omie.oferta.bloque.form</field>
-            <field name="model">giscedata.omie.oferta.bloque</field>
+        <record model="ir.ui.view" id="giscedata_omie_oferta_hora_form">
+            <field name="name">giscedata.omie.oferta.hora.form</field>
+            <field name="model">giscedata.omie.oferta.hora</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
-                <form string="Bloque de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                <form string="Hora de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
                     <group colspan="8">
                         <field name="per" colspan="8" readonly="1"/>
                         <field name="ctn" colspan="8" readonly="1"/>
@@ -33,7 +33,7 @@
                 </form>
             </field>
         </record>
-        <!--FIN OMIE OFERTA BLOQUE-->
+        <!--FIN OMIE OFERTA HORA-->
         <!--OMIE OFERTA-->
         <record model="ir.ui.view" id="giscedata_omie_oferta_tree">
             <field name="name">giscedata.omie.oferta.tree</field>
@@ -62,7 +62,7 @@
                     <field name="uni_monetaria"/>
                     <field name="uni_precio"/>
                     <field name="comentario_oferta"/>
-                    <field name="bloque_ids" nolabel="1"/>
+                    <field name="hora_ids" nolabel="1"/>
 			    </tree>
             </field>
         </record>
@@ -102,7 +102,7 @@
                                 <field name="state" colspan="2"/>
                                 <field name="origen" colspan="4" select="1"/>
                                 <button string="Enviar Oferta" name="enviar_oferta" type="object" primary="1" icon="send" colspan="4"/>
-                                <field name="bloque_ids" nolabel="1"/>
+                                <field name="hora_ids" nolabel="1"/>
                             </group>
                         </page>
                         <page string="Respuesta" attrs="{'invisible':[('state', 'not in', ('enviada', 'enviada_error'))]}">

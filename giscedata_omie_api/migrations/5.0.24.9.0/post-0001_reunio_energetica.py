@@ -19,8 +19,8 @@ def up(cursor, installed_version):
     logger.info("Table created succesfully.")
 
     ##UPDATAR UN MODUL NOU AL CREAR-LO O AFEGIR UNA COLUMNA##
-    logger.info("Creating table: wizard.llenar.bloques.oferta")
-    pool.get("wizard.llenar.bloques.oferta")._auto_init(cursor, context={'module': 'giscedata_omie_api'})
+    logger.info("Creating table: wizard.llenar.horas.oferta")
+    pool.get("wizard.llenar.horas.oferta")._auto_init(cursor, context={'module': 'giscedata_omie_api'})
     logger.info("Table created succesfully.")
 
     ##UPDATAR UNA PART DE L'XML (POSAR LA ID)##
@@ -37,10 +37,10 @@ def up(cursor, installed_version):
     ##UPDATAR UNA PART DE L'XML (POSAR LA ID)##
     logger.info("Updating XMLs")
     list_of_records = [
-        "view_wizard_llenar_bloques_oferta_form",
+        "view_wizard_llenar_horas_oferta_form",
     ]
     load_data_records(
-        cursor, 'giscedata_omie_api', 'wizard/wizard_llenar_bloques_oferta_view.xml', list_of_records, mode='update'
+        cursor, 'giscedata_omie_api', 'wizard/wizard_llenar_horas_oferta_view.xml', list_of_records, mode='update'
     )
     logger.info("XMLs succesfully updated.")
 

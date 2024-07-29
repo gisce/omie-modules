@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <openerp>
     <data>
-        <record id="view_wizard_llenar_bloques_oferta_form" model="ir.ui.view">
-            <field name="name">wizard.llenar.bloques.oferta.form</field>
-            <field name="model">wizard.llenar.bloques.oferta</field>
+        <record id="view_wizard_llenar_horas_oferta_form" model="ir.ui.view">
+            <field name="name">wizard.llenar.horas.oferta.form</field>
+            <field name="model">wizard.llenar.horas.oferta</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
                 <form string="Llenar Periodos Horarios Oferta.">
@@ -34,181 +34,181 @@
                         <field name="bloc_creat_23" invisible="1"/>
                         <field name="bloc_creat_24" invisible="1"/>
                         <field name="bloc_creat_25" invisible="1"/>
-                        <group string="Bloque 1" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_1', '!=', True)]}">
+                        <group string="Hora 1" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_1', '!=', True)]}">
                             <field name="energia_1" colspan="2"/>
                             <field name="precio_1" colspan="2"/>
                             <field name="es_divisible_1" colspan="2"/>
                             <field name="es_retirable_1" colspan="2"/>
                         </group>
-                        <group string="Bloque 2" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_2', '!=', True)]}">
+                        <group string="Hora 2" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_2', '!=', True)]}">
                             <field name="energia_2" colspan="2"/>
                             <field name="precio_2" colspan="2"/>
                             <field name="es_divisible_2" colspan="2"/>
                             <field name="es_retirable_2" colspan="2"/>
                         </group>
-                        <group string="Bloque 3" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_3', '!=', True)]}">
+                        <group string="Hora 3" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_3', '!=', True)]}">
                             <field name="energia_3" colspan="2"/>
                             <field name="precio_3" colspan="2"/>
                             <field name="es_divisible_3" colspan="2"/>
                             <field name="es_retirable_3" colspan="2"/>
                         </group>
-                        <group string="Bloque 4" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_4', '!=', True)]}">
+                        <group string="Hora 4" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_4', '!=', True)]}">
                             <field name="energia_4" colspan="2"/>
                             <field name="precio_4" colspan="2"/>
                             <field name="es_divisible_4" colspan="2"/>
                             <field name="es_retirable_4" colspan="2"/>
                         </group>
-                        <group string="Bloque 5" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_5', '!=', True)]}">
+                        <group string="Hora 5" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_5', '!=', True)]}">
                             <field name="energia_5" colspan="2"/>
                             <field name="precio_5" colspan="2"/>
                             <field name="es_divisible_5" colspan="2"/>
                             <field name="es_retirable_5" colspan="2"/>
                         </group>
-                        <group string="Bloque 6" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_6', '!=', True)]}">
+                        <group string="Hora 6" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_6', '!=', True)]}">
                             <field name="energia_6" colspan="2"/>
                             <field name="precio_6" colspan="2"/>
                             <field name="es_divisible_6" colspan="2"/>
                             <field name="es_retirable_6" colspan="2"/>
                         </group>
-                        <group string="Bloque 7" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_7', '!=', True)]}">
+                        <group string="Hora 7" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_7', '!=', True)]}">
                             <field name="energia_7" colspan="2"/>
                             <field name="precio_7" colspan="2"/>
                             <field name="es_divisible_7" colspan="2"/>
                             <field name="es_retirable_7" colspan="2"/>
                         </group>
-                        <group string="Bloque 8" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_8', '!=', True)]}">
+                        <group string="Hora 8" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_8', '!=', True)]}">
                             <field name="energia_8" colspan="2"/>
                             <field name="precio_8" colspan="2"/>
                             <field name="es_divisible_8" colspan="2"/>
                             <field name="es_retirable_8" colspan="2"/>
                         </group>
-                        <group string="Bloque 9" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_9', '!=', True)]}">
+                        <group string="Hora 9" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_9', '!=', True)]}">
                             <field name="energia_9" colspan="2"/>
                             <field name="precio_9" colspan="2"/>
                             <field name="es_divisible_9" colspan="2"/>
                             <field name="es_retirable_9" colspan="2"/>
                         </group>
-                        <group string="Bloque 10" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_10', '!=', True)]}">
+                        <group string="Hora 10" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_10', '!=', True)]}">
                             <field name="energia_10" colspan="2"/>
                             <field name="precio_10" colspan="2"/>
                             <field name="es_divisible_10" colspan="2"/>
                             <field name="es_retirable_10" colspan="2"/>
                         </group>
-                        <group string="Bloque 11" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_11', '!=', True)]}">
+                        <group string="Hora 11" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_11', '!=', True)]}">
                             <field name="energia_11" colspan="2"/>
                             <field name="precio_11" colspan="2"/>
                             <field name="es_divisible_11" colspan="2"/>
                             <field name="es_retirable_11" colspan="2"/>
                         </group>
-                        <group string="Bloque 12" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_12', '!=', True)]}">
+                        <group string="Hora 12" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_12', '!=', True)]}">
                             <field name="energia_12" colspan="2"/>
                             <field name="precio_12" colspan="2"/>
                             <field name="es_divisible_12" colspan="2"/>
                             <field name="es_retirable_12" colspan="2"/>
                         </group>
-                        <group string="Bloque 13" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_13', '!=', True)]}">
+                        <group string="Hora 13" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_13', '!=', True)]}">
                             <field name="energia_13" colspan="2"/>
                             <field name="precio_13" colspan="2"/>
                             <field name="es_divisible_13" colspan="2"/>
                             <field name="es_retirable_13" colspan="2"/>
                         </group>
-                        <group string="Bloque 14" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_14', '!=', True)]}">
+                        <group string="Hora 14" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_14', '!=', True)]}">
                             <field name="energia_14" colspan="2"/>
                             <field name="precio_14" colspan="2"/>
                             <field name="es_divisible_14" colspan="2"/>
                             <field name="es_retirable_14" colspan="2"/>
                         </group>
-                        <group string="Bloque 15" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_15', '!=', True)]}">
+                        <group string="Hora 15" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_15', '!=', True)]}">
                             <field name="energia_15" colspan="2"/>
                             <field name="precio_15" colspan="2"/>
                             <field name="es_divisible_15" colspan="2"/>
                             <field name="es_retirable_15" colspan="2"/>
                         </group>
-                        <group string="Bloque 16" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_16', '!=', True)]}">
+                        <group string="Hora 16" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_16', '!=', True)]}">
                             <field name="energia_16" colspan="2"/>
                             <field name="precio_16" colspan="2"/>
                             <field name="es_divisible_16" colspan="2"/>
                             <field name="es_retirable_16" colspan="2"/>
                         </group>
-                        <group string="Bloque 17" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_17', '!=', True)]}">
+                        <group string="Hora 17" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_17', '!=', True)]}">
                             <field name="energia_17" colspan="2"/>
                             <field name="precio_17" colspan="2"/>
                             <field name="es_divisible_17" colspan="2"/>
                             <field name="es_retirable_17" colspan="2"/>
                         </group>
-                        <group string="Bloque 18" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_18', '!=', True)]}">
+                        <group string="Hora 18" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_18', '!=', True)]}">
                             <field name="energia_18" colspan="2"/>
                             <field name="precio_18" colspan="2"/>
                             <field name="es_divisible_18" colspan="2"/>
                             <field name="es_retirable_18" colspan="2"/>
                         </group>
-                        <group string="Bloque 19" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_19', '!=', True)]}">
+                        <group string="Hora 19" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_19', '!=', True)]}">
                             <field name="energia_19" colspan="2"/>
                             <field name="precio_19" colspan="2"/>
                             <field name="es_divisible_19" colspan="2"/>
                             <field name="es_retirable_19" colspan="2"/>
                         </group>
-                        <group string="Bloque 20" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_20', '!=', True)]}">
+                        <group string="Hora 20" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_20', '!=', True)]}">
                             <field name="energia_20" colspan="2"/>
                             <field name="precio_20" colspan="2"/>
                             <field name="es_divisible_20" colspan="2"/>
                             <field name="es_retirable_20" colspan="2"/>
                         </group>
-                        <group string="Bloque 21" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_21', '!=', True)]}">
+                        <group string="Hora 21" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_21', '!=', True)]}">
                             <field name="energia_21" colspan="2"/>
                             <field name="precio_21" colspan="2"/>
                             <field name="es_divisible_21" colspan="2"/>
                             <field name="es_retirable_21" colspan="2"/>
                         </group>
-                        <group string="Bloque 22" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_22', '!=', True)]}">
+                        <group string="Hora 22" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_22', '!=', True)]}">
                             <field name="energia_22" colspan="2"/>
                             <field name="precio_22" colspan="2"/>
                             <field name="es_divisible_22" colspan="2"/>
                             <field name="es_retirable_22" colspan="2"/>
                         </group>
-                        <group string="Bloque 23" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_23', '!=', True)]}">
+                        <group string="Hora 23" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_23', '!=', True)]}">
                             <field name="energia_23" colspan="2"/>
                             <field name="precio_23" colspan="2"/>
                             <field name="es_divisible_23" colspan="2"/>
                             <field name="es_retirable_23" colspan="2"/>
                         </group>
-                        <group string="Bloque 24" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_24', '!=', True)]}">
+                        <group string="Hora 24" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_24', '!=', True)]}">
                             <field name="energia_24" colspan="2"/>
                             <field name="precio_24" colspan="2"/>
                             <field name="es_divisible_24" colspan="2"/>
                             <field name="es_retirable_24" colspan="2"/>
                         </group>
-                        <group string="Bloque 25" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_25', '!=', True)]}">
+                        <group string="Hora 25" col="4" colspan="6" attrs="{'readonly': [('bloc_creat_25', '!=', True)]}">
                             <field name="energia_25" colspan="2"/>
                             <field name="precio_25" colspan="2"/>
                             <field name="es_divisible_25" colspan="2"/>
                             <field name="es_retirable_25" colspan="2"/>
                         </group>
-                        <button icon="gtk-ok" name="llenar_bloques_oferta" string="Llenar bloques" type="object" colspan="12"/>
+                        <button icon="gtk-ok" name="llenar_horas_oferta" string="Llenar horas" type="object" colspan="12"/>
                         <button icon="gtk-cancel" special="cancel" string="Cancelar" type="object" colspan="12"/>
                     </group>
                     <group col="4" attrs="{'invisible': [('state', '!=', 'end')]}">
-                        <label string="Bloques modificados."/>
+                        <label string="Horas modificados."/>
                         <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" colspan="4"/>
                     </group>
                 </form>
             </field>
         </record>
-        <record id="action_wizard_llenar_bloques_oferta" model="ir.actions.act_window">
-            <field name="name">Llenar Bloques Oferta</field>
-            <field name="res_model">wizard.llenar.bloques.oferta</field>
+        <record id="action_wizard_llenar_horas_oferta" model="ir.actions.act_window">
+            <field name="name">Llenar Horas Oferta</field>
+            <field name="res_model">wizard.llenar.horas.oferta</field>
             <field name="view_type">form</field>
             <field name="view_mode">form</field>
-            <field name="view_id" ref="view_wizard_llenar_bloques_oferta_form"/>
+            <field name="view_id" ref="view_wizard_llenar_horas_oferta_form"/>
             <field name="target">new</field>
         </record>
-        <record id="value_llenar_bloques_oferta" model="ir.values">
+        <record id="value_llenar_horas_oferta" model="ir.values">
             <field name="object" eval="1"/>
-            <field name="name">Llenar Bloques Oferta</field>
+            <field name="name">Llenar Horas Oferta</field>
             <field name="key2">client_action_multi</field>
             <field name="key">action</field>
             <field name="model">giscedata.omie.oferta</field>
-            <field name="value" eval="'ir.actions.act_window,'+str(ref('action_wizard_llenar_bloques_oferta'))" />
+            <field name="value" eval="'ir.actions.act_window,'+str(ref('action_wizard_llenar_horas_oferta'))" />
         </record>
     </data>
 </openerp>

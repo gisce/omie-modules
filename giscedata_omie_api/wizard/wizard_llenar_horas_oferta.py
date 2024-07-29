@@ -2,16 +2,16 @@
 from __future__ import absolute_import
 from osv import osv, fields
 
-class WizardLlenarBloquesOferta(osv.osv_memory):
+class WizardLlenarHorasOferta(osv.osv_memory):
 
-    _name = 'wizard.llenar.bloques.oferta'
-    _description = """Asistente para llenar los bloques de una oferta"""
+    _name = 'wizard.llenar.horas.oferta'
+    _description = """Asistente para llenar los horas de una oferta"""
 
-    def llenar_bloques_oferta(self, cursor, uid, ids, context=None):
+    def llenar_horas_oferta(self, cursor, uid, ids, context=None):
         if context is None:
             context = {}
 
-        bloque_obj = self.pool.get('giscedata.omie.oferta.bloque')
+        hora_obj = self.pool.get('giscedata.omie.oferta.hora')
 
         wiz_id = ids[0]
         ctx = context.copy()
@@ -30,28 +30,28 @@ class WizardLlenarBloquesOferta(osv.osv_memory):
                     oferta_ids = str(tuple(oferta_ids))
                 sql = """
                     SELECT id
-                    FROM giscedata_omie_oferta_bloque
+                    FROM giscedata_omie_oferta_hora
                     WHERE
                         per = '{}' AND
                         oferta_id in {}
                 """.format(str(i), oferta_ids)
                 cursor.execute(sql)
-                bloque_ids = [x[0] for x in cursor.fetchall()]
+                hora_ids = [x[0] for x in cursor.fetchall()]
                 write_vals = {
                     'div': getattr(wiz_brw, divisible),
                     'ret': getattr(wiz_brw, retirable),
                     'ctn': getattr(wiz_brw, energia),
                     'prc': getattr(wiz_brw, precio),
                 }
-                bloque_obj.write(cursor, uid, bloque_ids, write_vals, context=context)
+                hora_obj.write(cursor, uid, hora_ids, write_vals, context=context)
         wiz_brw.write({'state': 'end'}, context=context)
 
     def default_get(self, cursor, uid, fields, context=None):
         if context is None:
             context = {}
-        res = super(WizardLlenarBloquesOferta, self).default_get(cursor, uid, fields, context=context)
+        res = super(WizardLlenarHorasOferta, self).default_get(cursor, uid, fields, context=context)
         oferta_obj = self.pool.get('giscedata.omie.oferta')
-        bloque_obj = self.pool.get('giscedata.omie.oferta.bloque')
+        hora_obj = self.pool.get('giscedata.omie.oferta.hora')
         for active_id in context.get('active_ids', []):
             # Posem tots els valors dels blocs a 0 i False
             for i in range(1, 26):
@@ -66,20 +66,20 @@ class WizardLlenarBloquesOferta(osv.osv_memory):
                 res[div_name] = False
                 res[creat_name] = False
 
-            oferta_vals = oferta_obj.read(cursor, uid, active_id, ['bloque_ids', 'clase_oferta'], context=context)
+            oferta_vals = oferta_obj.read(cursor, uid, active_id, ['hora_ids', 'clase_oferta'], context=context)
             # Posem els valors dels blocs que s'han creat realment
-            bloque_ids = oferta_vals.get('bloque_ids', [])
-            for bloque_id in bloque_ids:
-                bloque_vals = bloque_obj.read(cursor, uid, bloque_id, ['per', 'ctn', 'prc', 'div', 'ret'], context=context)
-                name_field_energia = 'energia_{}'.format(bloque_vals['per'])
-                name_field_preu = 'precio_{}'.format(bloque_vals['per'])
-                ret_name = 'es_retirable_{}'.format(bloque_vals['per'])
-                div_name = 'es_divisible_{}'.format(bloque_vals['per'])
-                creat_name = 'bloc_creat_{}'.format(bloque_vals['per'])
-                res[name_field_energia] = bloque_vals['ctn']
-                res[name_field_preu] = bloque_vals['prc']
-                res[div_name] = bloque_vals['div']
-                res[ret_name] = bloque_vals['ret']
+            hora_ids = oferta_vals.get('hora_ids', [])
+            for hora_id in hora_ids:
+                hora_vals = hora_obj.read(cursor, uid, hora_id, ['per', 'ctn', 'prc', 'div', 'ret'], context=context)
+                name_field_energia = 'energia_{}'.format(hora_vals['per'])
+                name_field_preu = 'precio_{}'.format(hora_vals['per'])
+                ret_name = 'es_retirable_{}'.format(hora_vals['per'])
+                div_name = 'es_divisible_{}'.format(hora_vals['per'])
+                creat_name = 'bloc_creat_{}'.format(hora_vals['per'])
+                res[name_field_energia] = hora_vals['ctn']
+                res[name_field_preu] = hora_vals['prc']
+                res[div_name] = hora_vals['div']
+                res[ret_name] = hora_vals['ret']
                 res[creat_name] = True
 
             # Si la oferta és de Venta, posem els 3 primers blocs com a retirables per defecte
@@ -192,31 +192,31 @@ class WizardLlenarBloquesOferta(osv.osv_memory):
         'es_divisible_25': fields.boolean('Es divisible 25'),
         'es_retirable_25': fields.boolean('Es retirable 25'),
         'state': fields.selection([('init', 'init'), ('end', 'end')], 'Estat'),
-        'bloc_creat_1': fields.boolean('Existe bloque 1'),
-        'bloc_creat_2': fields.boolean('Existe bloque 2'),
-        'bloc_creat_3': fields.boolean('Existe bloque 3'),
-        'bloc_creat_4': fields.boolean('Existe bloque 4'),
-        'bloc_creat_5': fields.boolean('Existe bloque 5'),
-        'bloc_creat_6': fields.boolean('Existe bloque 6'),
-        'bloc_creat_7': fields.boolean('Existe bloque 7'),
-        'bloc_creat_8': fields.boolean('Existe bloque 8'),
-        'bloc_creat_9': fields.boolean('Existe bloque 9'),
-        'bloc_creat_10': fields.boolean('Existe bloque 10'),
-        'bloc_creat_11': fields.boolean('Existe bloque 11'),
-        'bloc_creat_12': fields.boolean('Existe bloque 12'),
-        'bloc_creat_13': fields.boolean('Existe bloque 13'),
-        'bloc_creat_14': fields.boolean('Existe bloque 14'),
-        'bloc_creat_15': fields.boolean('Existe bloque 15'),
-        'bloc_creat_16': fields.boolean('Existe bloque 16'),
-        'bloc_creat_17': fields.boolean('Existe bloque 17'),
-        'bloc_creat_18': fields.boolean('Existe bloque 18'),
-        'bloc_creat_19': fields.boolean('Existe bloque 19'),
-        'bloc_creat_20': fields.boolean('Existe bloque 20'),
-        'bloc_creat_21': fields.boolean('Existe bloque 21'),
-        'bloc_creat_22': fields.boolean('Existe bloque 22'),
-        'bloc_creat_23': fields.boolean('Existe bloque 23'),
-        'bloc_creat_24': fields.boolean('Existe bloque 24'),
-        'bloc_creat_25': fields.boolean('Existe bloque 25'),
+        'bloc_creat_1': fields.boolean('Existe hora 1'),
+        'bloc_creat_2': fields.boolean('Existe hora 2'),
+        'bloc_creat_3': fields.boolean('Existe hora 3'),
+        'bloc_creat_4': fields.boolean('Existe hora 4'),
+        'bloc_creat_5': fields.boolean('Existe hora 5'),
+        'bloc_creat_6': fields.boolean('Existe hora 6'),
+        'bloc_creat_7': fields.boolean('Existe hora 7'),
+        'bloc_creat_8': fields.boolean('Existe hora 8'),
+        'bloc_creat_9': fields.boolean('Existe hora 9'),
+        'bloc_creat_10': fields.boolean('Existe hora 10'),
+        'bloc_creat_11': fields.boolean('Existe hora 11'),
+        'bloc_creat_12': fields.boolean('Existe hora 12'),
+        'bloc_creat_13': fields.boolean('Existe hora 13'),
+        'bloc_creat_14': fields.boolean('Existe hora 14'),
+        'bloc_creat_15': fields.boolean('Existe hora 15'),
+        'bloc_creat_16': fields.boolean('Existe hora 16'),
+        'bloc_creat_17': fields.boolean('Existe hora 17'),
+        'bloc_creat_18': fields.boolean('Existe hora 18'),
+        'bloc_creat_19': fields.boolean('Existe hora 19'),
+        'bloc_creat_20': fields.boolean('Existe hora 20'),
+        'bloc_creat_21': fields.boolean('Existe hora 21'),
+        'bloc_creat_22': fields.boolean('Existe hora 22'),
+        'bloc_creat_23': fields.boolean('Existe hora 23'),
+        'bloc_creat_24': fields.boolean('Existe hora 24'),
+        'bloc_creat_25': fields.boolean('Existe hora 25'),
     }
 
     _defaults = {
@@ -224,4 +224,4 @@ class WizardLlenarBloquesOferta(osv.osv_memory):
     }
 
 
-WizardLlenarBloquesOferta()
+WizardLlenarHorasOferta()

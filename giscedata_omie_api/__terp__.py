@@ -12,7 +12,7 @@
     'security/giscedata_omie_oferta_security.xml',
     'security/ir.model.access.csv',
     'giscedata_omie_oferta_view.xml',
-    'wizard/wizard_llenar_bloques_oferta_view.xml',
+    'wizard/wizard_llenar_horas_oferta_view.xml',
     'wizard/wizard_consulta_fecha_hora_view.xml',
     'wizard/wizard_consulta_sesiones_view.xml',
     'wizard/wizard_consulta_datos_usuario_view.xml',
