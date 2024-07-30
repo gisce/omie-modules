@@ -492,7 +492,7 @@ class GiscedataOmieOferta(osv.osv):
                 self.update_origen(cursor, uid, oferta_id, state, context=context)
                 if oferta_ids and valida:
                     # Marcamos como no válidas y sustituidas las ofertas enviadas anteriormente
-                    oferta_obj.write(cursor, uid, oferta_ids, {'sustituida': True, 'valida': False}, context=context)
+                    oferta_obj.write(cursor, uid, oferta_ids, {'sustituida': True}, context=context)
             except Exception as e:
                 raise osv.except_osv('Error:', e)
 
