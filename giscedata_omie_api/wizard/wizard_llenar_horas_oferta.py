@@ -37,9 +37,17 @@ class WizardLlenarHorasOferta(osv.osv_memory):
                 """.format(str(i), oferta_ids)
                 cursor.execute(sql)
                 hora_ids = [x[0] for x in cursor.fetchall()]
+                if getattr(wiz_brw, retirable):
+                    es_retirable = 'S'
+                else:
+                    es_retirable = 'N'
+                if getattr(wiz_brw, divisible):
+                    es_divisible = 'S'
+                else:
+                    es_divisible = 'N'
                 write_vals = {
-                    'div': getattr(wiz_brw, divisible),
-                    'ret': getattr(wiz_brw, retirable),
+                    'div': es_divisible,
+                    'ret': es_retirable,
                     'ctn': getattr(wiz_brw, energia),
                     'prc': getattr(wiz_brw, precio),
                 }
@@ -78,8 +86,14 @@ class WizardLlenarHorasOferta(osv.osv_memory):
                 creat_name = 'bloc_creat_{}'.format(hora_vals['per'])
                 res[name_field_energia] = hora_vals['ctn']
                 res[name_field_preu] = hora_vals['prc']
-                res[div_name] = hora_vals['div']
-                res[ret_name] = hora_vals['ret']
+                if hora_vals['div'] == 'S':
+                    res[div_name] = True
+                else:
+                    res[div_name] = False
+                if hora_vals['ret'] == 'S':
+                    res[ret_name] = True
+                else:
+                    res[ret_name] = False
                 res[creat_name] = True
 
             # Si la oferta és de Venta, posem els 3 primers blocs com a retirables per defecte

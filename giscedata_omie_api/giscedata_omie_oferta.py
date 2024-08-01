@@ -466,8 +466,7 @@ class GiscedataOmieOferta(osv.osv):
                 max_version = max(int(oferta['ver_mensaje']) for oferta in version_oferta)
                 oferta_dicc['VerMensaje'] = max_version + 1
 
-            client = ClientOMIE(crt_path='/home/aorellana/proyectos/OMIE/omie-base/omie/data/omie.cert',
-                crt_key='/home/aorellana/proyectos/OMIE/omie-base/omie/data/omie.key')
+            client = ClientOMIE()
             try:
                 res_oferta_zeep = client.ServicioAltaOfertasMD(MensajeOfertasMD=oferta_dicc)
                 res_oferta_dicc = helpers.serialize_object(res_oferta_zeep)
