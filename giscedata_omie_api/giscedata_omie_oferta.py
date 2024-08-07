@@ -345,7 +345,7 @@ class GiscedataOmieOferta(osv.osv):
             dicc_hora = {
                 "num": 1,
                 "div": hora_vals.get('div'),
-                "ret": hora_vals.get('ret'),
+                #"ret": hora_vals.get('ret'),
                 "Per": hora_vals.get('per'),
                 "Ctn": hora_vals.get('ctn', 0.0),
                 "Prc": hora_vals.get('prc', 0.0)
