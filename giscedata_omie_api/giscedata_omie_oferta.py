@@ -295,7 +295,7 @@ class GiscedataOmieOfertaHora(osv.osv):
         'ret': fields.selection(SI_NO, "Es retirable", required=True),
         'per': fields.selection(
             PERIODO_DIA, "Periodo horario del día",
-            help="Seleccionar el periodo del día para el que quiere hacer la oferta", required=True),
+            help="Seleccionar el periodo del día para el que quiere hacer la oferta"),
         'ctn': fields.float("Energía de la Oferta", digits=(8, 3), help="Energía de la oferta, sin signo"),
         'prc': fields.float("Precio de la Oferta", digits=(8, 3)),
         'oferta_id': fields.many2one('giscedata.omie.oferta', 'ID Oferta', ondelete='cascade'),
