@@ -292,7 +292,7 @@ class GiscedataOmieOfertaHora(osv.osv):
     _columns = {
         'num': fields.integer("Hora del Día"),
         'div': fields.selection(SI_NO, "Es divisible", required=True),
-        'ret': fields.selection(SI_NO, "Es retirable"),
+        'ret': fields.selection(SI_NO, "Es retirable", required=True),
         'per': fields.selection(
             PERIODO_DIA, "Periodo horario del día",
             help="Seleccionar el periodo del día para el que quiere hacer la oferta", required=True),
