@@ -8,7 +8,7 @@
             <field name="model">giscedata.omie.oferta.hora</field>
             <field name="type">tree</field>
             <field name="arch" type="xml">
-                <tree string="Horas de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                <tree string="Horas de Ofertas de OMIE">
                     <field name="per"/>
                     <field name="div"/>
                     <field name="ret"/>
@@ -22,7 +22,7 @@
             <field name="model">giscedata.omie.oferta.hora</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
-                <form string="Hora de Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                <form string="Hora de Ofertas de OMIE">
                     <group colspan="8">
                         <field name="per" colspan="8" readonly="1"/>
                         <field name="ctn" colspan="8" readonly="1"/>
@@ -40,7 +40,7 @@
             <field name="model">giscedata.omie.oferta</field>
             <field name="type">tree</field>
             <field name="arch" type="xml">
-                <tree string="Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                <tree string="Ofertas de OMIE">
                     <field name="state"/>
                     <field name="valida"/>
                     <field name="sustituida"/>
@@ -71,7 +71,7 @@
             <field name="model">giscedata.omie.oferta</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
-                <form string="Ofertas y Ejecuciones de Contratos Bilaterales Físicos">
+                <form string="Ofertas de OMIE">
                     <notebook>
                         <page string="Oferta">
                             <group col="10">

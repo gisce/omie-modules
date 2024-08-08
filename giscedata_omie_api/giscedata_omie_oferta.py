@@ -91,7 +91,7 @@ class GiscedataOmieOferta(osv.osv):
 
     _name = 'giscedata.omie.oferta'
     _rec_name = 'id_oferta'
-    _description = """Ofertas o Ejecuciones de Contratos Bilaterales Físicos."""
+    _description = """Ofertas de OMIE"""
 
     def create(self, cursor, uid, vals, context=None):
         if context is None:
