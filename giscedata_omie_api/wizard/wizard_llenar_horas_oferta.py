@@ -62,7 +62,15 @@ class WizardLlenarHorasOferta(osv.osv_memory):
         res = super(WizardLlenarHorasOferta, self).default_get(cursor, uid, fields, context=context)
         oferta_obj = self.pool.get('giscedata.omie.oferta')
         hora_obj = self.pool.get('giscedata.omie.oferta.hora')
+
         for active_id in context.get('active_ids', []):
+            oferta_vals = oferta_obj.read(cursor, uid, active_id, ['hora_ids', 'clase_oferta', 'state'],
+                                          context=context)
+
+            # No permitir modificar ofertas ya enviadas a OMIE
+            if oferta_vals.get('state', 'no_enviada') != 'no_enviada':
+                raise osv.except_osv('Error', _('No es posible editar una oferta ya enviada a OMIE.'))
+
             # Posem tots els valors dels blocs a 0 i False
             for i in range(1, 26):
                 name_field_energia = 'energia_{}'.format(i)
@@ -75,12 +83,6 @@ class WizardLlenarHorasOferta(osv.osv_memory):
                 res[ret_name] = True
                 res[div_name] = False
                 res[creat_name] = False
-
-            oferta_vals = oferta_obj.read(cursor, uid, active_id, ['hora_ids', 'clase_oferta', 'state'], context=context)
-
-            # No permitir modificar ofertas ya enviadas a OMIE
-            if oferta_vals.get('state', 'no_enviada') != 'no_enviada':
-                raise osv.except_osv('Error', _('No es posible editar una oferta ya enviada a OMIE.'))
 
             # Posem els valors dels blocs que s'han creat realment
             hora_ids = oferta_vals.get('hora_ids', [])
