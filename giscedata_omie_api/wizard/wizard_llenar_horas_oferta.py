@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from osv import osv, fields
+from tools.translate import _
+
 
 class WizardLlenarHorasOferta(osv.osv_memory):
 
@@ -74,7 +76,12 @@ class WizardLlenarHorasOferta(osv.osv_memory):
                 res[div_name] = False
                 res[creat_name] = False
 
-            oferta_vals = oferta_obj.read(cursor, uid, active_id, ['hora_ids', 'clase_oferta'], context=context)
+            oferta_vals = oferta_obj.read(cursor, uid, active_id, ['hora_ids', 'clase_oferta', 'state'], context=context)
+
+            # No permitir modificar ofertas ya enviadas a OMIE
+            if oferta_vals.get('state', 'no_enviada') != 'no_enviada':
+                raise osv.except_osv('Error', _('No es posible editar una oferta ya enviada a OMIE.'))
+
             # Posem els valors dels blocs que s'han creat realment
             hora_ids = oferta_vals.get('hora_ids', [])
             for hora_id in hora_ids:
@@ -95,12 +102,6 @@ class WizardLlenarHorasOferta(osv.osv_memory):
                 else:
                     res[ret_name] = False
                 res[creat_name] = True
-
-            # Si la oferta és de Venta, posem els 3 primers blocs com a retirables per defecte
-            if oferta_vals.get('clase_oferta') and oferta_vals.get('clase_oferta') == 'venta':
-                for i in range (1, 4):
-                    ret_name = 'es_retirable_{}'.format(i)
-                    res[ret_name] = True
 
         return res
 
