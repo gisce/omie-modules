@@ -305,7 +305,7 @@ class GiscedataOmieOfertaHora(osv.osv):
 GiscedataOmieOfertaHora()
 
 
-class GiscedataOmieOferta(osv.osv):
+class GiscedataOmieOfertaExtend(osv.osv):
 
     _name = 'giscedata.omie.oferta'
     _inherit = 'giscedata.omie.oferta'
@@ -495,13 +495,27 @@ class GiscedataOmieOferta(osv.osv):
             except Exception as e:
                 raise osv.except_osv('Error:', e)
 
+    def _get_total_energia(self, cursor, uid, ids, field_name, arg, context=None):
+        if context is None:
+            context = {}
+
+        if not isinstance(ids, (list, tuple)):
+            ids = [ids]
+
+        res = {}
+        for oferta in ids:
+            cursor.execute("SELECT SUM(ctn) FROM giscedata_omie_oferta_hora WHERE oferta_id = {}".format(oferta))
+            energia = cursor.fetchone()[0] or 0.0
+            res[oferta] = energia
+        return res
 
     _columns = {
         # Blq
         'hora_ids': fields.one2many(
             'giscedata.omie.oferta.hora', 'oferta_id', "horas de Oferta", ondelete='cascade'
         ),
+        'total_energia': fields.function(_get_total_energia, method=True, type="float", string="Energía total"),
     }
 
 
-GiscedataOmieOferta()
+GiscedataOmieOfertaExtend()
