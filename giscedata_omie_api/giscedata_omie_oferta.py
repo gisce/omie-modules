@@ -514,7 +514,7 @@ class GiscedataOmieOfertaExtend(osv.osv):
         'hora_ids': fields.one2many(
             'giscedata.omie.oferta.hora', 'oferta_id', "horas de Oferta", ondelete='cascade'
         ),
-        'total_energia': fields.function(_get_total_energia, method=True, type="float", string="Energía total"),
+        'total_energia': fields.function(_get_total_energia, method=True, type="float", string="Energía total (MWh)"),
     }
 
 

@@ -41,26 +41,23 @@
             <field name="type">tree</field>
             <field name="arch" type="xml">
                 <tree string="Ofertas de OMIE">
+                    <field name="id_oferta"/>
+                    <field name="fecha_sesion"/>
+                    <field name="tipo_mercado"/>
+                    <field name="id_unidad"/>
+                    <field name="clase_oferta"/>
+                    <field name="total_energia"/>
                     <field name="state"/>
                     <field name="valida"/>
                     <field name="sustituida"/>
+                    <field name="origen"/>
                     <field name="id_mensaje"/>
                     <field name="ver_mensaje"/>
-                    <field name="origen"/>
                     <field name="fecha_mensaje"/>
                     <field name="id_remitente"/>
-                    <field name="id_oferta"/>
-                    <field name="id_unidad"/>
                     <field name="cod_min_unidad"/>
-                    <field name="area_unidad"/>
                     <field name="tipo_unidad"/>
-                    <field name="tipo_mercado"/>
-                    <field name="fecha_sesion"/>
                     <field name="ind_defecto"/>
-                    <field name="clase_oferta"/>
-                    <field name="uni_energia"/>
-                    <field name="uni_monetaria"/>
-                    <field name="uni_precio"/>
                     <field name="comentario_oferta"/>
                     <field name="hora_ids" nolabel="1"/>
 			    </tree>
