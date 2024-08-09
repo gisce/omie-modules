@@ -84,22 +84,22 @@
                                 <group string="Información Oferta" icon="file-info" col="10" colspan="5" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error'))]}">
                                     <field name="id_oferta" colspan="2"/>
                                     <field name="ind_defecto" colspan="2"/>
-                                    <field name="clase_oferta" colspan="6"/>
+                                    <field name="clase_oferta" colspan="6" select="1"/>
                                     <field name="comentario_oferta" colspan="10"/>
                                 </group>
                                 <group string="Información Unidad" icon="info-circle" col="10" colspan="5" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error'))]}">
-                                    <field name="id_unidad" colspan="2"/>
+                                    <field name="id_unidad" colspan="2" select="1"/>
                                     <field name="cod_min_unidad" colspan="8"/>
                                     <field name="area_unidad" colspan="4"/>
                                     <field name="tipo_unidad" colspan="6"/>
                                 </group>
                                 <group string="Validez" icon="calendar-check" col="10" colspan="10" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error'))]}">
                                     <field name="tipo_mercado" colspan="5"/>
-                                    <field name="fecha_sesion" colspan="5"/>
+                                    <field name="fecha_sesion" colspan="5" select="1"/>
                                 </group>
                             </group>
                             <group attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error'))]}">
-                                <field name="state" colspan="2"/>
+                                <field name="state" colspan="2" select="1"/>
                                 <field name="origen" colspan="4" select="1"/>
                                 <button string="Enviar Oferta" name="enviar_oferta" type="object" primary="1" icon="send" colspan="4"/>
                                 <field name="hora_ids" nolabel="1"/>
@@ -117,9 +117,9 @@
                                 </group>
                                 <group string="Resultado" icon="clipboard-text" col="4" colspan="2">
                                     <field name="num_ofertas_procesadas" colspan="2"/>
-                                    <field name="sustituida" colspan="2"/>
+                                    <field name="sustituida" colspan="2" select="2"/>
                                     <field name="num_ofertas_correctas" colspan="2"/>
-                                    <field name="valida" colspan="2"/>
+                                    <field name="valida" colspan="2" select="2"/>
                                 </group>
                                 <group string="Respuesta" icon="send" col="10" colspan="10">
                                     <field name="codigo_respuesta" colspan="10"/>
