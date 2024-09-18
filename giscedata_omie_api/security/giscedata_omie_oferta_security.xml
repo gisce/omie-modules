@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <record model="res.groups" id="group_giscedata_omie_oferta_r">
+            <field name="name">GISCEDATA Omie / ReadOnly</field>
+        </record>
+        <record model="res.groups" id="group_giscedata_omie_oferta_w">
+            <field name="name">GISCEDATA Omie / User</field>
+        </record>
+        <record model="res.groups" id="group_giscedata_omie_oferta_u">
+            <field name="name">GISCEDATA Omie / Manager</field>
+        </record>
+    </data>
+</openerp>
