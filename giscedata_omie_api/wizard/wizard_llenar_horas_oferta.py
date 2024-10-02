@@ -13,6 +13,7 @@ class WizardLlenarHorasOferta(osv.osv_memory):
         if context is None:
             context = {}
 
+        oferta_obj = self.pool.get('giscedata.omie.oferta')
         hora_obj = self.pool.get('giscedata.omie.oferta.hora')
 
         wiz_id = ids[0]
@@ -20,12 +21,16 @@ class WizardLlenarHorasOferta(osv.osv_memory):
         ctx.update({'prefetch': False})
         wiz_brw = self.browse(cursor, uid, wiz_id, context=ctx)
         if context.get('active_ids', False):
-            for i in range(1, 101):
+            oferta_ids = context.get('active_ids')
+            qh_oferta = oferta_obj.read(cursor, uid, oferta_ids[0], ['qh_oferta'], context=context)['qh_oferta']
+            rang = 26
+            if qh_oferta:
+                rang = 101
+            for i in range(1, rang):
                 precio = 'precio_' + str(i)
                 energia = 'energia_' + str(i)
                 retirable = 'es_retirable_' + str(i)
                 divisible = 'es_divisible_' + str(i)
-                oferta_ids = context.get('active_ids')
                 if len(oferta_ids) == 1:
                     oferta_ids = '({})'.format(oferta_ids[0])
                 else:
@@ -106,6 +111,16 @@ class WizardLlenarHorasOferta(osv.osv_memory):
                 res[creat_name] = True
 
         return res
+
+    def get_qh_oferta(self, cursor, uid, context=None):
+        if context is None:
+            context = {}
+        if context.get('active_ids'):
+            oferta_obj = self.pool.get('giscedata.omie.oferta')
+            qf_oferta = oferta_obj.read(
+                cursor, uid, context.get('active_ids')[0], ['qh_oferta'], context=context
+            )['qh_oferta']
+            return qf_oferta
 
     _columns = {
         'energia_1': fields.float("Energía(MWh)", digits=(8, 3), help="Energía de la oferta, sin signo", readonly=True),
@@ -609,10 +624,12 @@ class WizardLlenarHorasOferta(osv.osv_memory):
         'bloc_creat_98': fields.boolean('Existe hora 98'),
         'bloc_creat_99': fields.boolean('Existe hora 99'),
         'bloc_creat_100': fields.boolean('Existe hora 100'),
+        'qh_oferta': fields.boolean('Es cuartohoraria'),
     }
 
     _defaults = {
         'state': lambda *a: 'init',
+        'qh_oferta': get_qh_oferta,
     }
 
 

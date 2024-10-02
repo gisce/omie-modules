@@ -183,7 +183,10 @@ class GiscedataOmieOferta(osv.osv):
         self.write(cursor, uid, [oferta_id], write_vals, context=context)
         if not context.get('no_crear_horas', True):
             hora_ids = []
-            for i in range(1, 26):
+            rang = 26
+            if vals.get('qh_oferta'):
+                rang = 101
+            for i in range(1, rang):
                 create_vals = {
                     'num': i,
                     'div': 'N',
@@ -339,6 +342,7 @@ class GiscedataOmieOferta(osv.osv):
             'Núm. Ofertas Correctas', size=16, help="Número total de ofertas correctas", readonly=True
         ),
         'origen': fields.reference('Origen', selection=_get_origen_selection, size=128),
+        'qh_oferta': fields.boolean('Oferta Cuarto-Horaria'),
     }
 
     defaults = {
