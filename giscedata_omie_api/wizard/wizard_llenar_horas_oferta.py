@@ -26,15 +26,15 @@ class WizardLlenarHorasOferta(osv.osv_memory):
             rang = 26
             if qh_oferta:
                 rang = 101
+            if len(oferta_ids) == 1:
+                oferta_ids = '({})'.format(oferta_ids[0])
+            else:
+                oferta_ids = str(tuple(oferta_ids))
             for i in range(1, rang):
                 precio = 'precio_' + str(i)
                 energia = 'energia_' + str(i)
                 retirable = 'es_retirable_' + str(i)
                 divisible = 'es_divisible_' + str(i)
-                if len(oferta_ids) == 1:
-                    oferta_ids = '({})'.format(oferta_ids[0])
-                else:
-                    oferta_ids = str(tuple(oferta_ids))
                 sql = """
                     SELECT id
                     FROM giscedata_omie_oferta_hora
