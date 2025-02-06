@@ -26,6 +26,12 @@ TIPO_MERCADO = [
     ('MI', 'Mercado Intradiario'),
 ]
 
+TIPO_NUM_SESION = [
+    ('1', 'Sesión IDA1'),
+    ('2', 'Sesión IDA2'),
+    ('3', 'Sesión IDA3')
+]
+
 SI_NO = [
     ('S', 'Si'),
     ('N', 'No'),
@@ -39,6 +45,8 @@ CLASE_OFERTA = [
 UNIDAD_ENERGIA = [
     ('MWh', 'MWh'),
     ('kWh', 'kWh'),
+    ('MW', 'MW'),
+    ('kW', 'kW'),
 ]
 
 UNIDAD_MONETARIA = [
@@ -50,6 +58,14 @@ UNIDAD_PRECIOS = [
     ('cEURO/kWh', 'cEURO/kWh'),
     ('cEURO/MWh', 'cEURO/MWh'),
     ('EURO/MWh', 'EURO/MWh'),
+    ('cEURO/kW', 'cEURO/kW'),
+    ('cEURO/MW', 'cEURO/MW'),
+    ('EURO/MW', 'EURO/MW'),
+]
+
+UNIDAD_MEDIDA = [
+    ('E', 'Energía'),
+    ('P', 'Potencia'),
 ]
 
 PERIODO_DIA = [
@@ -215,6 +231,7 @@ class GiscedataOmieOferta(osv.osv):
             'area_unidad': '1',
             'tipo_unidad': 'UO',
             'tipo_mercado': 'MD',
+            'uni_medida': 'E',
         }
         return res
 
@@ -269,6 +286,13 @@ class GiscedataOmieOferta(osv.osv):
         'tipo_mercado': fields.selection(
             TIPO_MERCADO, "Tipo de Mercado", help="MD: Mercado Diario, MI: Mercado Intradiario", required=True
         ),
+        'num_sesion': fields.selection(TIPO_NUM_SESION,"Sesión MI",
+                                       help="""
+                                            Indica el número de sesión de Mercado Intradiario Europeo (Intraday Auction)\n
+                                            * IDA1: Abierto a las 14:00 del día D+1\n
+                                            * IDA2: Abierto a las 21:00 del día D+1\n
+                                            * IDA3: Abierto a las 09:00 del día D\n
+                                            """),
         'valida': fields.boolean(
             'Valida', readonly=True, help="La oferta será valida si no ha sido sustituida y se ha enviado procesado "
                                           "y aceptado por parte de OMIE."
@@ -301,6 +325,10 @@ class GiscedataOmieOferta(osv.osv):
         'uni_monetaria': fields.selection(UNIDAD_MONETARIA, "Unidad Monetaria", help="cEURO/EURO"),
         'uni_precio': fields.selection(
             UNIDAD_PRECIOS, 'Unidad de Precio', help="cEURO/kWh, cEURO/MWh, EURO/MWh",
+        ),
+        'uni_medida': fields.selection(
+            UNIDAD_MEDIDA, 'Unidad de Medida',
+            help="Determina si la medida de la oferta es de Energía o de Potencia.",
         ),
         #'uni_gradiente' SIEMPRE VALE 'MW/Min'
         'comentario_oferta': fields.char(
@@ -358,6 +386,7 @@ class GiscedataOmieOferta(osv.osv):
         'default_values_set': lambda *a: True,
         'valida': lambda *a: False,
         'sustituida': lambda *a: False,
+        'uni_medida': lambda *a: 'E'
     }
 
 
@@ -595,7 +624,7 @@ class GiscedataOmieOfertaExtend(osv.osv):
         'hora_ids': fields.one2many(
             'giscedata.omie.oferta.hora', 'oferta_id', "horas de Oferta", ondelete='cascade'
         ),
-        'total_energia': fields.function(_get_total_energia, method=True, type="float", string="Energía total (MWh)"),
+        'total_energia': fields.function(_get_total_energia, method=True, type="float", string="Medida total"),
     }
 
 
