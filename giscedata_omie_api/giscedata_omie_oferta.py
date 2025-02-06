@@ -47,6 +47,11 @@ UNIDAD_ENERGIA = [
     ('kWh', 'kWh'),
 ]
 
+UNIDAD_POTENCIA = [
+    ('MW', 'MW'),
+    ('kW', 'kW'),
+]
+
 UNIDAD_MONETARIA = [
     ('cEURO', 'cEURO'),
     ('EURO', 'EURO'),
@@ -216,6 +221,7 @@ class GiscedataOmieOferta(osv.osv):
         res = {
             'state': 'no_enviada',
             'uni_energia': 'MWh',
+            'uni_potencia': 'MW',
             'uni_monetaria': 'EURO',
             'uni_precio': 'EURO/MWh',
             'grad_parada': 0.0,
@@ -317,6 +323,7 @@ class GiscedataOmieOferta(osv.osv):
         'grad_bajada': fields.float("Gradiente de Bajada", digits=(6, 1), help="Gradiente de Bajada"),
         'grad_subida': fields.float("Gradiente de Subida", digits=(6, 1), help="Gradiente de Subida"),
         'uni_energia': fields.selection(UNIDAD_ENERGIA, "Unidad de Energía", help="MWh/kWh"),
+        'uni_potencia': fields.selection(UNIDAD_POTENCIA, "Unidad de Potencia", help="MW/kW"),
         'uni_monetaria': fields.selection(UNIDAD_MONETARIA, "Unidad Monetaria", help="cEURO/EURO"),
         'uni_precio': fields.selection(
             UNIDAD_PRECIOS, 'Unidad de Precio', help="cEURO/kWh, cEURO/MWh, EURO/MWh",
@@ -370,6 +377,7 @@ class GiscedataOmieOferta(osv.osv):
 
     defaults = {
         'uni_energia': lambda *a: 'MWh',
+        'uni_potencia': lambda *a: 'MW',
         'uni_monetaria': lambda *a: 'EURO',
         'uni_precio': lambda *a: 'EURO/MWh',
         'state': lambda *a: 'no_enviada',
@@ -480,6 +488,7 @@ class GiscedataOmieOfertaExtend(osv.osv):
                 },
                 'ClaseOferta': oferta_vals_filtered.get('clase_oferta'),
                 'UniEnergia': oferta_vals_filtered.get('uni_energia'),
+                # 'UniPotencia': oferta_vals_filtered.get('uni_potencia'),  # TODO activate as soon ISP15 starts
                 'UniMonetaria': oferta_vals_filtered.get('uni_monetaria'),
                 'UniPrecio': oferta_vals_filtered.get('uni_precio'),
                 'UniGradiente': 'MW/min',
