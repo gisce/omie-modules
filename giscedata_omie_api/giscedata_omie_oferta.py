@@ -45,8 +45,6 @@ CLASE_OFERTA = [
 UNIDAD_ENERGIA = [
     ('MWh', 'MWh'),
     ('kWh', 'kWh'),
-    ('MW', 'MW'),
-    ('kW', 'kW'),
 ]
 
 UNIDAD_MONETARIA = [
@@ -58,9 +56,6 @@ UNIDAD_PRECIOS = [
     ('cEURO/kWh', 'cEURO/kWh'),
     ('cEURO/MWh', 'cEURO/MWh'),
     ('EURO/MWh', 'EURO/MWh'),
-    ('cEURO/kW', 'cEURO/kW'),
-    ('cEURO/MW', 'cEURO/MW'),
-    ('EURO/MW', 'EURO/MW'),
 ]
 
 UNIDAD_MEDIDA = [
