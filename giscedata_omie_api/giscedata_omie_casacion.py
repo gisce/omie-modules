@@ -262,7 +262,7 @@ class GiscedataOmieOfertaExtend(osv.osv):
             oferta_data = self.read(cursor, uid, oferta_id, read_params, context=context)
 
             # Skip not published or replaced offers
-            if oferta_data.get('state', 'no_enviada') in ('enviada', 'casacion') or oferta_data.get('sustituida', False):
+            if oferta_data.get('state', 'no_enviada') not in ('enviada', 'casacion') or oferta_data.get('sustituida', False):
                 continue
 
             key = (oferta_data['fecha_sesion'],
