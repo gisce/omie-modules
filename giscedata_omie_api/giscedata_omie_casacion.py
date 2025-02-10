@@ -32,14 +32,11 @@ class GiscedataOmieCasacion(osv.osv):
 
         oferta_obj = self.pool.get('giscedata.omie.oferta')
 
-        vals = {'casacion_id': False, 'casacion_descargada': False}
-
         # Set to False casation for related offers
-        for casacion_id in ids:
-            oferta_ids = oferta_obj.search(cursor, uid, [('casacion_id', '=', casacion_id)])
-            oferta_obj.write(cursor, uid, oferta_ids, vals)
+        oferta_ids = oferta_obj.search(cursor, uid, [('casacion_id', 'in', ids)])
+        oferta_obj.write(cursor, uid, oferta_ids, {'casacion_id': False, 'casacion_descargada': False})
 
-            return super(GiscedataOmieCasacion, self).unlink(cursor, uid, [casacion_id], context=context)
+        return super(GiscedataOmieCasacion, self).unlink(cursor, uid, ids, context=context)
 
     def get_casation_by_session(self, cursor, uid, params, context=None):
         """

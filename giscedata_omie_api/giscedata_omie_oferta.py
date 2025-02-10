@@ -174,7 +174,8 @@ PERIODO_DIA = [
 ESTADO_OFERTA = [
     ('no_enviada', 'No Enviada'),
     ('enviada', 'Enviada'),
-    ('enviada_error', 'Enviada Con Errores')
+    ('enviada_error', 'Enviada Con Errores'),
+    ('casacion', 'Generada para descargar la casación')
 ]
 
 
@@ -213,28 +214,6 @@ class GiscedataOmieOferta(osv.osv):
                 hora_id = hora_obj.create(cursor, uid, create_vals, context=context)
                 hora_ids.append(hora_id)
         return oferta_id
-
-    def default_get(self, cursor, uid, fields, context=None):
-        if context is None:
-            context = {}
-
-        res = {
-            'state': 'no_enviada',
-            'uni_energia': 'MWh',
-            'uni_potencia': 'MW',
-            'uni_monetaria': 'EURO',
-            'uni_precio': 'EURO/MWh',
-            'grad_parada': 0.0,
-            'grad_arranque': 0.0,
-            'grad_bajada': 0.0,
-            'grad_subida': 0.0,
-            'ind_defecto': 'N',
-            'area_unidad': '1',
-            'tipo_unidad': 'UO',
-            'tipo_mercado': 'MD',
-            'uni_medida': 'E',
-        }
-        return res
 
     def _get_origen_selection(self, cursor, uid, context=None):
         if context is None:
@@ -375,7 +354,7 @@ class GiscedataOmieOferta(osv.osv):
         'qh_oferta': fields.boolean('Oferta Cuarto-Horaria'),
     }
 
-    defaults = {
+    _defaults = {
         'uni_energia': lambda *a: 'MWh',
         'uni_potencia': lambda *a: 'MW',
         'uni_monetaria': lambda *a: 'EURO',
@@ -386,11 +365,13 @@ class GiscedataOmieOferta(osv.osv):
         'grad_arranque': lambda *a: 0.0,
         'grad_bajada': lambda *a: 0.0,
         'grad_subida': lambda *a: 0.0,
-        'default_values_set': lambda *a: True,
         'valida': lambda *a: False,
         'sustituida': lambda *a: False,
-        'tipo_mercado': 'MD',
-        'uni_medida': lambda *a: 'E'
+        'tipo_mercado': lambda *a: 'MD',
+        'uni_medida': lambda *a: 'E',
+        'qh_oferta': lambda *a: False,
+        'area_unidad': lambda *a: '1',
+        'tipo_unidad': lambda *a: 'UO'
     }
 
 
