@@ -439,8 +439,6 @@ class GiscedataOmieOfertaExtend(osv.osv):
             hora_vals = hora_obj.read(cursor, uid, hora_id, [], context=context)
             dicc_hora = {
                 "num": 1,
-                "div": hora_vals.get('div'),
-                #"ret": hora_vals.get('ret'),
                 "Per": hora_vals.get('per'),
                 "Ctn": hora_vals.get('ctn', 0.0),
                 "Prc": hora_vals.get('prc', 0.0)
@@ -473,9 +471,11 @@ class GiscedataOmieOfertaExtend(osv.osv):
                 # 'UniPotencia': oferta_vals_filtered.get('uni_potencia'),  # TODO activate as soon ISP15 starts
                 'UniMonetaria': oferta_vals_filtered.get('uni_monetaria'),
                 'UniPrecio': oferta_vals_filtered.get('uni_precio'),
-                'UniGradiente': 'MW/min',
+                # 'UniGradiente': 'MW/min',  # No permitido desde marzo de 2025
                 'Comentario': oferta_vals_filtered.get('comentario_oferta', ""),
                 'Detalle': {
+                    'Dia': oferta_vals_filtered.get('fecha_sesion')[:10],
+                    'Resolucion': 'PT60M',  # PT60M para horario, PT15M para cuartohorario
                     'Blq': list_horas
                 }
             },
