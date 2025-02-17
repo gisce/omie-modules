@@ -67,9 +67,9 @@ def parse_pbf_reponse(res_casacion, magn):
                         if val['n'] == 'Periodo':
                             period = str(val['v']).zfill(2)
                         elif val['n'] == 'EnergiaTotal' and magn == 'E':
-                            measure = float(val['v'])
+                            measure = abs(float(val['v']))
                         elif val['n'] == 'PotenciaTotal' and magn == 'P':
-                            measure = float(val['v'])
+                            measure = abs(float(val['v']))
                         elif val['n'] == 'Descripción':
                             desc = val['v']
                             if 'Q' in desc and not is_qh:
@@ -150,9 +150,9 @@ def parse_phf_reponse(res_casacion, magn):
                         if val['n'] == 'Periodo':
                             period = str(val['v']).zfill(2)
                         elif val['n'] == 'Energia' and magn == 'E':
-                            measure = float(val['v'])
+                            measure = abs(float(val['v']))
                         elif val['n'] == 'Potencia' and magn == 'P':
-                            measure = float(val['v'])
+                            measure = abs(float(val['v']))
                         elif val['n'] == 'Descripción':
                             desc = val['v']
                             if 'Q' in desc and not is_qh:
