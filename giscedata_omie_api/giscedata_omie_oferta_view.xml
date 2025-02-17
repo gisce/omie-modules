@@ -102,6 +102,8 @@
                                     <field name="num_sesion" colspan="5" select="2"
                                            attrs="{'invisible':[('tipo_mercado','!=','MI')], 'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}" />
                                     <field name="fecha_sesion" colspan="5" select="1" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}"/>
+                                    <field name="tipo_necesidad" colspan="5"
+                                           attrs="{'invisible':[('tipo_mercado','!=','MI')], 'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}"/>
                                 </group>
                             </group>
                             <group attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}">

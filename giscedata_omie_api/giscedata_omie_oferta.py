@@ -178,6 +178,33 @@ ESTADO_OFERTA = [
     ('casacion', 'Generada para descargar la casación')
 ]
 
+TIPO_NECESIDAD = [
+    ('10', '10: Adq. de distribuidor >10%'),
+    ('20', '20: Adq. de distribuidor >10%'),
+    ('30', '30: Venta de distribuidor < 10%'),
+    ('40', '40: Venta de distribuidor > 10%'),
+    ('50', '50: Adq. de comercializador'),
+    ('60', '60: Adq. de consumidor Cualif.'),
+    ('61', '61: Adq. de consumidor directo'),
+    ('70', '70: Venta de comercializador'),
+    ('80', '80: Venta de consumidor Cualif.'),
+    ('81', '81: Venta de consumidor directo'),
+    ('90', '90: Venta de unidad de bombeo'),
+    ('101', '101: Compra por indisponibilidad'),
+    ('102', '102: Compra por pruebas'),
+    ('103', '103: Compra por infactibilidad'),
+    ('111', '111: Venta por probabil. de vertido'),
+    ('112', '112: Venta por pruebas'),
+    ('113', '113: Venta por infactibilidad'),
+    ('120', '120: Oferta de venta libre'),
+    ('130', '130: Oferta de compra libre'),
+    ('140', '140: Adq. CUR > 10%'),
+    ('141', '141: Adq. CUR < 10%'),
+    ('142', '142: Venta CUR > 10%'),
+    ('143', '143: Venta CUR < 10%'),
+
+]
+
 
 class GiscedataOmieOferta(osv.osv):
 
@@ -352,6 +379,7 @@ class GiscedataOmieOferta(osv.osv):
         ),
         'origen': fields.reference('Origen', selection=_get_origen_selection, size=128),
         'qh_oferta': fields.boolean('Oferta Cuarto-Horaria'),
+        'tipo_necesidad': fields.selection(TIPO_NECESIDAD, 'Tipo de necesidad')
     }
 
     _defaults = {
@@ -484,6 +512,66 @@ class GiscedataOmieOfertaExtend(osv.osv):
 
         return oferta_dicc
 
+    def mensaje_oferta_mi_dicc(self, cursor, uid, oferta_id, context=None):
+        if context is None:
+            context = {}
+
+        oferta_obj = self.pool.get('giscedata.omie.oferta')
+        hora_obj = self.pool.get('giscedata.omie.oferta.hora')
+
+        oferta_vals = oferta_obj.read(cursor, uid, oferta_id, [], context=context)
+        oferta_vals_filtered = self.delete_null_fields(cursor, uid, oferta_vals, context=context)
+
+        list_horas = []
+        for hora_id in oferta_vals_filtered.get('hora_ids', []):
+            hora_vals = hora_obj.read(cursor, uid, hora_id, [], context=context)
+            dicc_hora = {
+                "num": 1,
+                "Per": hora_vals.get('per'),
+                "Ctn": hora_vals.get('ctn', 0.0),
+                "Prc": hora_vals.get('prc', 0.0)
+            }
+            list_horas.append(dicc_hora)
+
+        oferta_dicc = {
+            'IdMensaje': oferta_vals_filtered.get('id_mensaje'),
+            'VerMensaje': oferta_vals_filtered.get('ver_mensaje', 1),
+            'FechaMensaje': datetime.today().strftime('%Y-%m-%dT%H:%M:%S'),
+            'IdRemitente': oferta_vals_filtered.get('id_remitente'),
+            'Oferta': {
+                'IdOferta': oferta_vals_filtered.get('id_oferta'),
+                'IdUnidad': {
+                    "v": oferta_vals_filtered.get('id_unidad'),
+                    "codMin": oferta_vals_filtered.get('cod_min_unidad', ""),
+                    "area": oferta_vals_filtered.get('area_unidad'),
+                    "tipo": oferta_vals_filtered.get('tipo_unidad'),
+                },
+                'NumOferta': '2',
+                'TipoNecesidad': oferta_vals_filtered.get('tipo_necesidad'),
+                'Validez': {
+                    'TipoMercado': oferta_vals_filtered.get('tipo_mercado'),
+                    'Sesion': {
+                        'fecha': oferta_vals_filtered.get('fecha_sesion')[:10],
+                        'num': "2",
+                    }
+                },
+                'ClaseOferta': oferta_vals_filtered.get('clase_oferta'),
+                # 'UniEnergia': oferta_vals_filtered.get('uni_energia'),  # No permitido desde marzo de 2025
+                'UniPotencia': oferta_vals_filtered.get('uni_potencia'),  # Remplaza UniEnergia desde marzo de 2025
+                'UniMonetaria': oferta_vals_filtered.get('uni_monetaria'),
+                'UniPrecio': oferta_vals_filtered.get('uni_precio'),
+                # 'UniGradiente': 'MW/min',  # No permitido desde marzo de 2025
+                'Comentario': oferta_vals_filtered.get('comentario_oferta', ""),
+                'Detalle': {
+                    'Dia': oferta_vals_filtered.get('fecha_sesion')[:10],
+                    'Resolucion': 'PT15M',  # PT60M para horario, PT15M para cuartohorario
+                    'Blq': list_horas
+                }
+            },
+        }
+
+        return oferta_dicc
+
     def respuesta_oferta_dicc(self, cursor, uid, res_oferta_dicc, context=None):
         if context is None:
             context = {}
@@ -545,7 +633,11 @@ class GiscedataOmieOfertaExtend(osv.osv):
         oferta_obj = self.pool.get('giscedata.omie.oferta')
 
         for oferta_id in ids:
-            oferta_dicc = oferta_obj.mensaje_oferta_md_dicc(cursor, uid, oferta_id, context=context)
+            tipo_mercado = self.read(cursor, uid, oferta_id, ['tipo_mercado'])['tipo_mercado']
+            if tipo_mercado == 'MD':
+                oferta_dicc = oferta_obj.mensaje_oferta_md_dicc(cursor, uid, oferta_id, context=context)
+            else:
+                oferta_dicc = oferta_obj.mensaje_oferta_mi_dicc(cursor, uid, oferta_id, context=context)
             # Buscamos las ofertas enviadas anteriormente
             search_vals = [
                 ('tipo_mercado', '=', oferta_dicc.get('Oferta').get('Validez').get('TipoMercado')),
@@ -565,7 +657,10 @@ class GiscedataOmieOfertaExtend(osv.osv):
 
             client = ClientOMIE()
             try:
-                res_oferta_zeep = client.ServicioAltaOfertasMD(MensajeOfertasMD=oferta_dicc)
+                if tipo_mercado == 'MD':
+                    res_oferta_zeep = client.ServicioAltaOfertasMD(MensajeOfertasMD=oferta_dicc)
+                else:
+                    res_oferta_zeep = client.ServicioAltaOfertasMI(MensajeOfertasMI=oferta_dicc)
                 res_oferta_dicc = helpers.serialize_object(res_oferta_zeep)
                 respuesta_dicc = self.crear_respuesta_oferta(cursor, uid, oferta_id, res_oferta_dicc, context=context)
                 if int(respuesta_dicc['num_ofertas_correctas']) == 0:
