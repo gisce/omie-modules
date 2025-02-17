@@ -10,8 +10,7 @@
             <field name="arch" type="xml">
                 <tree string="Horas de Ofertas de OMIE">
                     <field name="per"/>
-                    <field name="div"/>
-                    <field name="ret"/>
+                    <field name="desc"/>
                     <field name="ctn"/>
                     <field name="prc"/>
 			    </tree>
@@ -25,10 +24,9 @@
                 <form string="Hora de Ofertas de OMIE">
                     <group colspan="8">
                         <field name="per" colspan="8" readonly="1"/>
+                        <field name="desc" colspan="8" readonly="1"/>
                         <field name="ctn" colspan="8" readonly="1"/>
                         <field name="prc" colspan="8" readonly="1"/>
-                        <field name="div" colspan="8" readonly="1"/>
-                        <field name="ret" colspan="8" readonly="1"/>
                     </group>
                 </form>
             </field>
