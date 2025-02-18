@@ -496,8 +496,8 @@ class GiscedataOmieOfertaExtend(osv.osv):
                     'TipoCasacion': 1,  # Siempre vale 1
                 },
                 'ClaseOferta': oferta_vals_filtered.get('clase_oferta'),
-                'UniEnergia': oferta_vals_filtered.get('uni_energia'),
-                # 'UniPotencia': oferta_vals_filtered.get('uni_potencia'),  # TODO activate as soon ISP15 starts
+                # 'UniEnergia': oferta_vals_filtered.get('uni_energia'),  # No permitido desde marzo de 2025
+                'UniPotencia': oferta_vals_filtered.get('uni_potencia'),  # Remplaza UniEnergia desde marzo de 2025
                 'UniMonetaria': oferta_vals_filtered.get('uni_monetaria'),
                 'UniPrecio': oferta_vals_filtered.get('uni_precio'),
                 # 'UniGradiente': 'MW/min',  # No permitido desde marzo de 2025
@@ -552,7 +552,7 @@ class GiscedataOmieOfertaExtend(osv.osv):
                     'TipoMercado': oferta_vals_filtered.get('tipo_mercado'),
                     'Sesion': {
                         'fecha': oferta_vals_filtered.get('fecha_sesion')[:10],
-                        'num': "2",
+                        'num': oferta_vals_filtered.get('num_sesion')
                     }
                 },
                 'ClaseOferta': oferta_vals_filtered.get('clase_oferta'),
