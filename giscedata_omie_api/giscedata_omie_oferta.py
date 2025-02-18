@@ -546,7 +546,7 @@ class GiscedataOmieOfertaExtend(osv.osv):
                     "area": oferta_vals_filtered.get('area_unidad'),
                     "tipo": oferta_vals_filtered.get('tipo_unidad'),
                 },
-                'NumOferta': '2',
+                'NumOferta': 1,
                 'TipoNecesidad': oferta_vals_filtered.get('tipo_necesidad'),
                 'Validez': {
                     'TipoMercado': oferta_vals_filtered.get('tipo_mercado'),
@@ -654,6 +654,10 @@ class GiscedataOmieOfertaExtend(osv.osv):
                 version_oferta = oferta_obj.read(cursor, uid, oferta_ids, ['ver_mensaje'], context=context)
                 max_version = max(int(oferta['ver_mensaje']) for oferta in version_oferta)
                 oferta_dicc['VerMensaje'] = max_version + 1
+
+                # Incrementamos número de oferta de MI, para que no se sustituyan por error
+                if tipo_mercado == 'MI':
+                    oferta_dicc['Oferta']['NumOferta'] = len(oferta_ids) + 1
 
             client = ClientOMIE()
             try:
