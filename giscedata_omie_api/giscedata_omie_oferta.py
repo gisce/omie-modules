@@ -379,7 +379,7 @@ class GiscedataOmieOferta(osv.osv):
         ),
         'origen': fields.reference('Origen', selection=_get_origen_selection, size=128),
         'qh_oferta': fields.boolean('Oferta Cuarto-Horaria'),
-        'tipo_necesidad': fields.selection(TIPO_NECESIDAD, 'Tipo de necesidad')
+        'tipo_necesidad': fields.selection(TIPO_NECESIDAD, 'Tipo de necesidad', readonly=True)
     }
 
     _defaults = {
