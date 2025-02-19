@@ -66,7 +66,10 @@ class GiscedataOmieCasacion(osv.osv):
             client = ClientOMIE()
 
             # Get params dict for PBF request
-            casacion_dict = get_pbf_dict(params)
+            if params['num_sesion'] is False:
+                casacion_dict = get_pbf_dict(params)
+            else:
+                casacion_dict = get_phf_dict(params)
 
             try:
                 # Get casation for session throuhg OMIE API
@@ -92,7 +95,10 @@ class GiscedataOmieCasacion(osv.osv):
             cron_wst.log(logging.INFO, msg="No hi ha hagut errors. Adaptant el format de la resposta...",
                          status='Running')
 
-            casation, is_qh = parse_pbf_reponse(res_casacion_dict, params['uni_medida'])
+            if params['num_sesion'] is False:
+                casation, is_qh = parse_pbf_reponse(res_casacion_dict, params['uni_medida'])
+            else:
+                casation, is_qh = parse_phf_reponse(res_casacion_dict, params['uni_medida'])
 
             # Addapt to QH if needed
             if not is_qh:
