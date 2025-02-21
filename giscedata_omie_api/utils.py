@@ -49,11 +49,10 @@ def parse_pbf_reponse(res_casacion, magn):
     Addapt format from OMIE 5222 reponse to model data to update
     :param res_casacion: dict
     :param magn: str in ('P', 'E')
-    :return: tuple (list of dict, boolean)
+    :return: list of dict
     """
     # Parse and addapt to list of dict
     res = []
-    is_qh = True
 
     for regs in res_casacion.get('Fila', []):
         for reg in regs:
@@ -72,14 +71,12 @@ def parse_pbf_reponse(res_casacion, magn):
                             measure = abs(float(val['v']))
                         elif val['n'] == 'Descripción':
                             desc = val['v']
-                            if 'Q' in desc and not is_qh:
-                                is_qh = True
                         else:
                             pass
             if period and measure and desc:
                 res.append({'num': int(period), 'per': period, 'ctn': measure, 'desc': desc})
 
-    return res, is_qh
+    return res
 
 
 def get_phf_dict(params):

@@ -2,8 +2,7 @@
 from __future__ import absolute_import
 from giscedata_omie_api.giscedata_omie_oferta import (
     PERIODO_DIA, TIPO_MERCADO, CLASE_OFERTA, TIPO_NUM_SESION, UNIDAD_MEDIDA)
-from giscedata_omie_api.utils import (get_pbf_dict, parse_pbf_reponse, get_phf_dict, parse_phf_reponse,
-                                      convert_casation_to_qh)
+from giscedata_omie_api.utils import get_pbf_dict, parse_pbf_reponse, get_phf_dict, parse_phf_reponse
 from omie import ClientOMIE
 from osv import osv, fields
 from zeep import helpers
@@ -96,14 +95,9 @@ class GiscedataOmieCasacion(osv.osv):
                          status='Running')
 
             if params['num_sesion'] is False:
-                casation, is_qh = parse_pbf_reponse(res_casacion_dict, params['uni_medida'])
+                casation = parse_pbf_reponse(res_casacion_dict, params['uni_medida'])
             else:
-                casation, is_qh = parse_phf_reponse(res_casacion_dict, params['uni_medida'])
-
-            # Addapt to QH if needed
-            if not is_qh:
-                cron_wst.log(logging.INFO, msg="Adaptant la cassació a format quart-horari...", status='Running')
-                casation = convert_casation_to_qh(casation, params['uni_medida'])
+                casation = parse_phf_reponse(res_casacion_dict, params['uni_medida'])
 
             # Preventive delete of casation with same date, type, session, class and measure
             search_params = [('id_unidad', '=', params['id_unidad']),
