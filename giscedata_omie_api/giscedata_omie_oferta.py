@@ -396,7 +396,7 @@ class GiscedataOmieOferta(osv.osv):
         'valida': lambda *a: False,
         'sustituida': lambda *a: False,
         'tipo_mercado': lambda *a: 'MD',
-        'uni_medida': lambda *a: 'E',
+        'uni_medida': lambda *a: 'P',
         'qh_oferta': lambda *a: False,
         'area_unidad': lambda *a: '1',
         'tipo_unidad': lambda *a: 'UO'
