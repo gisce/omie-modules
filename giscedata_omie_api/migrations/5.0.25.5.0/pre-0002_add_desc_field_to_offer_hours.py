@@ -11,7 +11,7 @@ def up(cursor, installed_version):
     if config.updating_all:
         return
 
-    table_name = 'giscedata_omie_oferta_hour'
+    table_name = 'giscedata_omie_oferta_hora'
     field_name = 'desc'
 
     if not column_exists(cursor, table_name, field_name):
@@ -25,7 +25,7 @@ def up(cursor, installed_version):
         )
 
         # Set default desc
-        cursor.execute("UPDATE giscedata_omie_oferta_hour SET desc = per")
+        cursor.execute('UPDATE giscedata_omie_oferta_hora SET "desc" = per')
 
 def down(cursor, installed_version):
     pass

@@ -14,10 +14,10 @@ def up(cursor, installed_version):
 
     # Update data model
     pool = pooler.get_pool(cursor.dbname)
-    pool.get('giscedata.omie.oferta')._auto_init(cursor, context={'module': 'giscedata_omie_api'})
+    pool.get('giscedata.omie.oferta.hora')._auto_init(cursor, context={'module': 'giscedata_omie_api'})
 
     # Update views
-    record_ids = ['giscedata_omie_oferta_form', 'giscedata_omie_oferta_tree', 'listado_ofertas']
+    record_ids = ['giscedata_omie_oferta_hora_tree', 'giscedata_omie_oferta_hora_form']
     load_data_records(cursor, 'giscedata_omie_api', 'giscedata_omie_oferta_view.xml', record_ids)
 
 def down(cursor, installed_version):

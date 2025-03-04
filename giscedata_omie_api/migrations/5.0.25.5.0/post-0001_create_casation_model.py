@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import
-from oopgrade.oopgrade import load_data
+from oopgrade.oopgrade import load_data, load_data_records
 from tools import config
 import pooler
 
@@ -15,6 +15,11 @@ def up(cursor, installed_version):
     # Create data model
     pool = pooler.get_pool(cursor.dbname)
     pool.get('giscedata.omie.casacion')._auto_init(cursor, context={'module': 'giscedata_omie_api'})
+    pool.get('giscedata.omie.oferta')._auto_init(cursor, context={'module': 'giscedata_omie_api'})
+
+    # Update views
+    record_ids = ['giscedata_omie_oferta_form', 'giscedata_omie_oferta_tree', 'listado_ofertas']
+    load_data_records(cursor, 'giscedata_omie_api', 'giscedata_omie_oferta_view.xml', record_ids)
 
     # Create views
     load_data(cursor, 'giscedata_omie_api', 'giscedata_omie_casacion_view.xml')
