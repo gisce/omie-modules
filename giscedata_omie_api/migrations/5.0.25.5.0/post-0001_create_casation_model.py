@@ -15,6 +15,7 @@ def up(cursor, installed_version):
     # Create data model
     pool = pooler.get_pool(cursor.dbname)
     pool.get('giscedata.omie.casacion')._auto_init(cursor, context={'module': 'giscedata_omie_api'})
+    pool.get('giscedata.omie.casacion.hora')._auto_init(cursor, context={'module': 'giscedata_omie_api'})
     pool.get('giscedata.omie.oferta')._auto_init(cursor, context={'module': 'giscedata_omie_api'})
 
     # Update views
