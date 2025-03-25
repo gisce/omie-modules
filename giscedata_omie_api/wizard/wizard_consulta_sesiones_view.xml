@@ -96,6 +96,7 @@
             <field name="key">action</field>
             <field name="value" eval="'ir.actions.act_window,'+str(ref('action_wizard_consulta_sesiones'))" />
         </record>
-        <menuitem name="Consultar Sesiones del Mercado" id="consulta_sesiones_mercado" action="action_wizard_consulta_sesiones" parent="menu_omie"/>
+        <menuitem name="Consultar Sesiones del Mercado" id="consulta_sesiones_mercado"
+                  action="action_wizard_consulta_sesiones" parent="menu_omie" sequence="97"/>
     </data>
 </openerp>

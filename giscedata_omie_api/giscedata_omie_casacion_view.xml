@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<openerp>
+    <data>
+        <!-- Add Casation to Offer -->
+        <record model="ir.ui.view" id="giscedata_omie_oferta_casacion_form">
+            <field name="name">giscedata.omie.oferta.casacion.form</field>
+            <field name="model">giscedata.omie.oferta</field>
+            <field name="inherit_id" ref="giscedata_omie_api.giscedata_omie_oferta_form"/>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <xpath expr="//group[@string='Respuesta']" position="after">
+                    <group string="Casación" icon="calendar-check" col="10" colspan="10">
+                        <field name="casacion_descargada" colspan="10"/>
+                        <button string="Descargar casación" name="get_casation" type="object"
+                                primary="1" icon="clipboard-text" colspan="4"
+                                attrs="{'readonly':[('casacion_descargada', '=', True)]}"/>
+                        <field name="casacion_id" colspan="10"
+                               attrs="{'invisible':[('casacion_descargada', '=', False)]}"/>
+                    </group>
+                </xpath>
+            </field>
+        </record>
+
+        <!--OMIE HORA CASACION -->
+        <record model="ir.ui.view" id="giscedata_omie_casacion_hora_tree">
+            <field name="name">giscedata.omie.casacion.hora.tree</field>
+            <field name="model">giscedata.omie.casacion.hora</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Horas de Casaciones de OMIE">
+                    <field name="per"/>
+                    <field name="desc"/>
+                    <field name="ctn"/>
+			    </tree>
+            </field>
+        </record>
+        <record model="ir.ui.view" id="giscedata_omie_casacion_hora_form">
+            <field name="name">giscedata.omie.casacion.hora.form</field>
+            <field name="model">giscedata.omie.casacion.hora</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Hora de Casación de OMIE">
+                    <group colspan="8">
+                        <field name="per" colspan="8" readonly="1"/>
+                        <field name="desc" colspan="8" readonly="1"/>
+                        <field name="ctn" colspan="8" readonly="1"/>
+                    </group>
+                </form>
+            </field>
+        </record>
+
+        <!--OMIE CASACION -->
+        <record model="ir.ui.view" id="giscedata_omie_casacion_tree">
+            <field name="name">giscedata.omie.casacion.tree</field>
+            <field name="model">giscedata.omie.casacion</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Casaciones de OMIE">
+                    <field name="name"/>
+                    <field name="id_unidad"/>
+                    <field name="tipo_mercado"/>
+                    <field name="fecha_sesion"/>
+                    <field name="num_sesion"/>
+                    <field name="clase_oferta"/>
+                    <field name="uni_medida"/>
+                    <field name="total_energia"/>
+                    <field name="hora_ids" nolabel="1"/>
+			    </tree>
+            </field>
+        </record>
+        <record model="ir.ui.view" id="giscedata_omie_casacion_form">
+            <field name="name">giscedata.omie.casacion.form</field>
+            <field name="model">giscedata.omie.casacion</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Casación de OMIE">
+                    <field name="name"/>
+                    <group string="Sesión" icon="calendar-check" col="10" colspan="10">
+                        <field name="id_unidad" colspan="2"/>
+                        <field name="tipo_mercado" colspan="2"/>
+                        <field name="fecha_sesion" colspan="3"/>
+                        <field name="num_sesion" colspan="3"
+                               attrs="{'invisible':[('tipo_mercado', '!=', 'MI')]}"/>
+                    </group>
+                    <group string="Clase de Oferta" icon="file-info" col="10" colspan="10">
+                        <field name="clase_oferta" colspan="2"/>
+                        <field name="uni_medida" colspan="2"/>
+                        <field string="Medida Total (MWh)" name="total_energia" colspan="3"
+                               attrs="{'invisible':[('uni_medida', '!=', 'E')]}"/>
+                        <field string="Medida Total (MW)" name="total_energia" colspan="3"
+                               attrs="{'invisible':[('uni_medida', '!=', 'P')]}"/>
+                    </group>
+                    <group string="Mensaje" icon="message" col="10" colspan="10">
+                        <field name="hora_ids" colspan="2"/>
+                    </group>
+                </form>
+            </field>
+        </record>
+
+        <!-- ACCIONES -->
+        <record model="ir.actions.act_window" id="action_listar_casacions">
+            <field name="name">Casaciones de OMIE</field>
+            <field name="res_model">giscedata.omie.casacion</field>
+            <field name="src_model">giscedata.omie.casacion</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <!-- ENLACES -->
+        <menuitem name="Casaciones de OMIE" id="listado_casaciones"
+                  action="action_listar_casacions" parent="menu_omie" sequence="2"/>
+    </data>
+</openerp>

@@ -26,6 +26,12 @@ TIPO_MERCADO = [
     ('MI', 'Mercado Intradiario'),
 ]
 
+TIPO_NUM_SESION = [
+    ('1', 'Sesión IDA1'),
+    ('2', 'Sesión IDA2'),
+    ('3', 'Sesión IDA3')
+]
+
 SI_NO = [
     ('S', 'Si'),
     ('N', 'No'),
@@ -41,6 +47,11 @@ UNIDAD_ENERGIA = [
     ('kWh', 'kWh'),
 ]
 
+UNIDAD_POTENCIA = [
+    ('MW', 'MW'),
+    ('kW', 'kW'),
+]
+
 UNIDAD_MONETARIA = [
     ('cEURO', 'cEURO'),
     ('EURO', 'EURO'),
@@ -50,6 +61,11 @@ UNIDAD_PRECIOS = [
     ('cEURO/kWh', 'cEURO/kWh'),
     ('cEURO/MWh', 'cEURO/MWh'),
     ('EURO/MWh', 'EURO/MWh'),
+]
+
+UNIDAD_MEDIDA = [
+    ('E', 'Energía'),
+    ('P', 'Potencia'),
 ]
 
 PERIODO_DIA = [
@@ -158,7 +174,35 @@ PERIODO_DIA = [
 ESTADO_OFERTA = [
     ('no_enviada', 'No Enviada'),
     ('enviada', 'Enviada'),
-    ('enviada_error', 'Enviada Con Errores')
+    ('enviada_error', 'Enviada Con Errores'),
+    ('casacion', 'Generada para descargar la casación')
+]
+
+TIPO_NECESIDAD = [
+    ('10', '10: Adq. de distribuidor >10%'),
+    ('20', '20: Adq. de distribuidor >10%'),
+    ('30', '30: Venta de distribuidor < 10%'),
+    ('40', '40: Venta de distribuidor > 10%'),
+    ('50', '50: Adq. de comercializador'),
+    ('60', '60: Adq. de consumidor Cualif.'),
+    ('61', '61: Adq. de consumidor directo'),
+    ('70', '70: Venta de comercializador'),
+    ('80', '80: Venta de consumidor Cualif.'),
+    ('81', '81: Venta de consumidor directo'),
+    ('90', '90: Venta de unidad de bombeo'),
+    ('101', '101: Compra por indisponibilidad'),
+    ('102', '102: Compra por pruebas'),
+    ('103', '103: Compra por infactibilidad'),
+    ('111', '111: Venta por probabil. de vertido'),
+    ('112', '112: Venta por pruebas'),
+    ('113', '113: Venta por infactibilidad'),
+    ('120', '120: Oferta de venta libre'),
+    ('130', '130: Oferta de compra libre'),
+    ('140', '140: Adq. CUR > 10%'),
+    ('141', '141: Adq. CUR < 10%'),
+    ('142', '142: Venta CUR > 10%'),
+    ('143', '143: Venta CUR < 10%'),
+
 ]
 
 
@@ -197,26 +241,6 @@ class GiscedataOmieOferta(osv.osv):
                 hora_id = hora_obj.create(cursor, uid, create_vals, context=context)
                 hora_ids.append(hora_id)
         return oferta_id
-
-    def default_get(self, cursor, uid, fields, context=None):
-        if context is None:
-            context = {}
-
-        res = {
-            'state': 'no_enviada',
-            'uni_energia': 'MWh',
-            'uni_monetaria': 'EURO',
-            'uni_precio': 'EURO/MWh',
-            'grad_parada': 0.0,
-            'grad_arranque': 0.0,
-            'grad_bajada': 0.0,
-            'grad_subida': 0.0,
-            'ind_defecto': 'N',
-            'area_unidad': '1',
-            'tipo_unidad': 'UO',
-            'tipo_mercado': 'MD',
-        }
-        return res
 
     def _get_origen_selection(self, cursor, uid, context=None):
         if context is None:
@@ -269,6 +293,13 @@ class GiscedataOmieOferta(osv.osv):
         'tipo_mercado': fields.selection(
             TIPO_MERCADO, "Tipo de Mercado", help="MD: Mercado Diario, MI: Mercado Intradiario", required=True
         ),
+        'num_sesion': fields.selection(TIPO_NUM_SESION,"Sesión MI",
+                                       help="""
+                                            Indica el número de sesión de Mercado Intradiario Europeo (Intraday Auction)\n
+                                            * IDA1: Abierto a las 14:00 del día D+1\n
+                                            * IDA2: Abierto a las 21:00 del día D+1\n
+                                            * IDA3: Abierto a las 09:00 del día D\n
+                                            """),
         'valida': fields.boolean(
             'Valida', readonly=True, help="La oferta será valida si no ha sido sustituida y se ha enviado procesado "
                                           "y aceptado por parte de OMIE."
@@ -298,9 +329,14 @@ class GiscedataOmieOferta(osv.osv):
         'grad_bajada': fields.float("Gradiente de Bajada", digits=(6, 1), help="Gradiente de Bajada"),
         'grad_subida': fields.float("Gradiente de Subida", digits=(6, 1), help="Gradiente de Subida"),
         'uni_energia': fields.selection(UNIDAD_ENERGIA, "Unidad de Energía", help="MWh/kWh"),
+        'uni_potencia': fields.selection(UNIDAD_POTENCIA, "Unidad de Potencia", help="MW/kW"),
         'uni_monetaria': fields.selection(UNIDAD_MONETARIA, "Unidad Monetaria", help="cEURO/EURO"),
         'uni_precio': fields.selection(
             UNIDAD_PRECIOS, 'Unidad de Precio', help="cEURO/kWh, cEURO/MWh, EURO/MWh",
+        ),
+        'uni_medida': fields.selection(
+            UNIDAD_MEDIDA, 'Unidad de Medida',
+            help="Determina si la medida de la oferta es de Energía o de Potencia.",
         ),
         #'uni_gradiente' SIEMPRE VALE 'MW/Min'
         'comentario_oferta': fields.char(
@@ -343,10 +379,12 @@ class GiscedataOmieOferta(osv.osv):
         ),
         'origen': fields.reference('Origen', selection=_get_origen_selection, size=128),
         'qh_oferta': fields.boolean('Oferta Cuarto-Horaria'),
+        'tipo_necesidad': fields.selection(TIPO_NECESIDAD, 'Tipo de necesidad', readonly=True)
     }
 
-    defaults = {
+    _defaults = {
         'uni_energia': lambda *a: 'MWh',
+        'uni_potencia': lambda *a: 'MW',
         'uni_monetaria': lambda *a: 'EURO',
         'uni_precio': lambda *a: 'EURO/MWh',
         'state': lambda *a: 'no_enviada',
@@ -355,9 +393,13 @@ class GiscedataOmieOferta(osv.osv):
         'grad_arranque': lambda *a: 0.0,
         'grad_bajada': lambda *a: 0.0,
         'grad_subida': lambda *a: 0.0,
-        'default_values_set': lambda *a: True,
         'valida': lambda *a: False,
         'sustituida': lambda *a: False,
+        'tipo_mercado': lambda *a: 'MD',
+        'uni_medida': lambda *a: 'P',
+        'qh_oferta': lambda *a: False,
+        'area_unidad': lambda *a: '1',
+        'tipo_unidad': lambda *a: 'UO'
     }
 
 
@@ -377,6 +419,7 @@ class GiscedataOmieOfertaHora(osv.osv):
         'per': fields.selection(
             PERIODO_DIA, "Periodo horario del día",
             help="Seleccionar el periodo del día para el que quiere hacer la oferta", required=True),
+        'desc': fields.char('Descripción', size=16, readonly=True),
         'ctn': fields.float("Energía de la Oferta", digits=(8, 3), help="Energía de la oferta, sin signo"),
         'prc': fields.float("Precio de la Oferta", digits=(8, 3)),
         'oferta_id': fields.many2one('giscedata.omie.oferta', 'ID Oferta', ondelete='cascade'),
@@ -425,8 +468,6 @@ class GiscedataOmieOfertaExtend(osv.osv):
             hora_vals = hora_obj.read(cursor, uid, hora_id, [], context=context)
             dicc_hora = {
                 "num": 1,
-                "div": hora_vals.get('div'),
-                #"ret": hora_vals.get('ret'),
                 "Per": hora_vals.get('per'),
                 "Ctn": hora_vals.get('ctn', 0.0),
                 "Prc": hora_vals.get('prc', 0.0)
@@ -455,12 +496,75 @@ class GiscedataOmieOfertaExtend(osv.osv):
                     'TipoCasacion': 1,  # Siempre vale 1
                 },
                 'ClaseOferta': oferta_vals_filtered.get('clase_oferta'),
-                'UniEnergia': oferta_vals_filtered.get('uni_energia'),
+                # 'UniEnergia': oferta_vals_filtered.get('uni_energia'),  # No permitido desde marzo de 2025
+                'UniPotencia': oferta_vals_filtered.get('uni_potencia'),  # Remplaza UniEnergia desde marzo de 2025
                 'UniMonetaria': oferta_vals_filtered.get('uni_monetaria'),
                 'UniPrecio': oferta_vals_filtered.get('uni_precio'),
-                'UniGradiente': 'MW/min',
+                # 'UniGradiente': 'MW/min',  # No permitido desde marzo de 2025
                 'Comentario': oferta_vals_filtered.get('comentario_oferta', ""),
                 'Detalle': {
+                    'Dia': oferta_vals_filtered.get('fecha_sesion')[:10],
+                    'Resolucion': 'PT60M',  # PT60M para horario, PT15M para cuartohorario
+                    'Blq': list_horas
+                }
+            },
+        }
+
+        return oferta_dicc
+
+    def mensaje_oferta_mi_dicc(self, cursor, uid, oferta_id, context=None):
+        if context is None:
+            context = {}
+
+        oferta_obj = self.pool.get('giscedata.omie.oferta')
+        hora_obj = self.pool.get('giscedata.omie.oferta.hora')
+
+        oferta_vals = oferta_obj.read(cursor, uid, oferta_id, [], context=context)
+        oferta_vals_filtered = self.delete_null_fields(cursor, uid, oferta_vals, context=context)
+
+        list_horas = []
+        for hora_id in oferta_vals_filtered.get('hora_ids', []):
+            hora_vals = hora_obj.read(cursor, uid, hora_id, [], context=context)
+            dicc_hora = {
+                "num": 1,
+                "Per": hora_vals.get('per'),
+                "Ctn": hora_vals.get('ctn', 0.0),
+                "Prc": hora_vals.get('prc', 0.0)
+            }
+            list_horas.append(dicc_hora)
+
+        oferta_dicc = {
+            'IdMensaje': oferta_vals_filtered.get('id_mensaje'),
+            'VerMensaje': oferta_vals_filtered.get('ver_mensaje', 1),
+            'FechaMensaje': datetime.today().strftime('%Y-%m-%dT%H:%M:%S'),
+            'IdRemitente': oferta_vals_filtered.get('id_remitente'),
+            'Oferta': {
+                'IdOferta': oferta_vals_filtered.get('id_oferta'),
+                'IdUnidad': {
+                    "v": oferta_vals_filtered.get('id_unidad'),
+                    "codMin": oferta_vals_filtered.get('cod_min_unidad', ""),
+                    "area": oferta_vals_filtered.get('area_unidad'),
+                    "tipo": oferta_vals_filtered.get('tipo_unidad'),
+                },
+                'NumOferta': 1,
+                'TipoNecesidad': oferta_vals_filtered.get('tipo_necesidad'),
+                'Validez': {
+                    'TipoMercado': oferta_vals_filtered.get('tipo_mercado'),
+                    'Sesion': {
+                        'fecha': oferta_vals_filtered.get('fecha_sesion')[:10],
+                        'num': oferta_vals_filtered.get('num_sesion')
+                    }
+                },
+                'ClaseOferta': oferta_vals_filtered.get('clase_oferta'),
+                # 'UniEnergia': oferta_vals_filtered.get('uni_energia'),  # No permitido desde marzo de 2025
+                'UniPotencia': oferta_vals_filtered.get('uni_potencia'),  # Remplaza UniEnergia desde marzo de 2025
+                'UniMonetaria': oferta_vals_filtered.get('uni_monetaria'),
+                'UniPrecio': oferta_vals_filtered.get('uni_precio'),
+                # 'UniGradiente': 'MW/min',  # No permitido desde marzo de 2025
+                'Comentario': oferta_vals_filtered.get('comentario_oferta', ""),
+                'Detalle': {
+                    'Dia': oferta_vals_filtered.get('fecha_sesion')[:10],
+                    'Resolucion': 'PT15M',  # PT60M para horario, PT15M para cuartohorario
                     'Blq': list_horas
                 }
             },
@@ -529,7 +633,11 @@ class GiscedataOmieOfertaExtend(osv.osv):
         oferta_obj = self.pool.get('giscedata.omie.oferta')
 
         for oferta_id in ids:
-            oferta_dicc = oferta_obj.mensaje_oferta_md_dicc(cursor, uid, oferta_id, context=context)
+            tipo_mercado = self.read(cursor, uid, oferta_id, ['tipo_mercado'])['tipo_mercado']
+            if tipo_mercado == 'MD':
+                oferta_dicc = oferta_obj.mensaje_oferta_md_dicc(cursor, uid, oferta_id, context=context)
+            else:
+                oferta_dicc = oferta_obj.mensaje_oferta_mi_dicc(cursor, uid, oferta_id, context=context)
             # Buscamos las ofertas enviadas anteriormente
             search_vals = [
                 ('tipo_mercado', '=', oferta_dicc.get('Oferta').get('Validez').get('TipoMercado')),
@@ -547,9 +655,16 @@ class GiscedataOmieOfertaExtend(osv.osv):
                 max_version = max(int(oferta['ver_mensaje']) for oferta in version_oferta)
                 oferta_dicc['VerMensaje'] = max_version + 1
 
+                # Incrementamos número de oferta de MI, para que no se sustituyan por error
+                if tipo_mercado == 'MI':
+                    oferta_dicc['Oferta']['NumOferta'] = len(oferta_ids) + 1
+
             client = ClientOMIE()
             try:
-                res_oferta_zeep = client.ServicioAltaOfertasMD(MensajeOfertasMD=oferta_dicc)
+                if tipo_mercado == 'MD':
+                    res_oferta_zeep = client.ServicioAltaOfertasMD(MensajeOfertasMD=oferta_dicc)
+                else:
+                    res_oferta_zeep = client.ServicioAltaOfertasMI(MensajeOfertasMI=oferta_dicc)
                 res_oferta_dicc = helpers.serialize_object(res_oferta_zeep)
                 respuesta_dicc = self.crear_respuesta_oferta(cursor, uid, oferta_id, res_oferta_dicc, context=context)
                 if int(respuesta_dicc['num_ofertas_correctas']) == 0:
@@ -595,7 +710,7 @@ class GiscedataOmieOfertaExtend(osv.osv):
         'hora_ids': fields.one2many(
             'giscedata.omie.oferta.hora', 'oferta_id', "horas de Oferta", ondelete='cascade'
         ),
-        'total_energia': fields.function(_get_total_energia, method=True, type="float", string="Energía total (MWh)"),
+        'total_energia': fields.function(_get_total_energia, method=True, type="float", string="Medida total"),
     }
 
 

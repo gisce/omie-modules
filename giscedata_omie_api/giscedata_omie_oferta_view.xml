@@ -10,8 +10,7 @@
             <field name="arch" type="xml">
                 <tree string="Horas de Ofertas de OMIE">
                     <field name="per"/>
-                    <field name="div"/>
-                    <field name="ret"/>
+                    <field name="desc"/>
                     <field name="ctn"/>
                     <field name="prc"/>
 			    </tree>
@@ -25,10 +24,9 @@
                 <form string="Hora de Ofertas de OMIE">
                     <group colspan="8">
                         <field name="per" colspan="8" readonly="1"/>
+                        <field name="desc" colspan="8" readonly="1"/>
                         <field name="ctn" colspan="8" readonly="1"/>
                         <field name="prc" colspan="8" readonly="1"/>
-                        <field name="div" colspan="8" readonly="1"/>
-                        <field name="ret" colspan="8" readonly="1"/>
                     </group>
                 </form>
             </field>
@@ -44,9 +42,11 @@
                     <field name="id_oferta"/>
                     <field name="fecha_sesion"/>
                     <field name="tipo_mercado"/>
+                    <field name="num_sesion"/>
                     <field name="qh_oferta"/>
                     <field name="id_unidad"/>
                     <field name="clase_oferta"/>
+                    <field name="uni_medida"/>
                     <field name="total_energia"/>
                     <field name="state"/>
                     <field name="valida"/>
@@ -73,39 +73,47 @@
                     <notebook>
                         <page string="Oferta">
                             <group col="10">
-                                <group string="Mensaje" icon="message" col="10" colspan="10" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error'))]}">
+                                <group string="Mensaje" icon="message" col="10" colspan="10" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}">
                                     <field name="id_mensaje" colspan="2"/>
                                     <field name="ver_mensaje" colspan="2"/>
-                                    <field name="id_remitente" colspan="3"/>
+                                    <field name="id_remitente" colspan="3" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}"/>
                                     <field name="fecha_mensaje" colspan="3" attrs="{'invisible':[('state','=','no_enviada')]}"/>
                                 </group>
-                                <group string="Información Oferta" icon="file-info" col="10" colspan="5" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error'))]}">
+                                <group string="Información Oferta" icon="file-info" col="10" colspan="5" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}">
                                     <field name="id_oferta" colspan="2"/>
                                     <field name="ind_defecto" colspan="4"/>
-                                    <field name="total_energia" colspan="4"/>
-                                    <field name="clase_oferta" colspan="6" select="1"/>
-                                    <field name="qh_oferta" colspan="4"/>
+                                    <field name="total_energia" string="Medida total (MWh)" colspan="4"
+                                        attrs="{'invisible':[('uni_medida', '!=', 'E')]}"/>
+                                    <field name="total_energia" string="Medida total (MW)" colspan="4"
+                                        attrs="{'invisible':[('uni_medida', '!=', 'P')]}"/>
+                                    <field name="clase_oferta" colspan="6" select="1" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}"/>
+                                    <field name="uni_medida" select="1" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}"/>
+                                    <field name="qh_oferta" colspan="4" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}"/>
                                     <field name="comentario_oferta" colspan="10"/>
                                 </group>
-                                <group string="Información Unidad" icon="info-circle" col="10" colspan="5" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error'))]}">
-                                    <field name="id_unidad" colspan="4" select="1"/>
-                                    <field name="cod_min_unidad" colspan="6"/>
-                                    <field name="area_unidad" colspan="4"/>
-                                    <field name="tipo_unidad" colspan="6"/>
+                                <group string="Información Unidad" icon="info-circle" col="10" colspan="5" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}">
+                                    <field name="id_unidad" colspan="4" select="1" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}"/>
+                                    <field name="cod_min_unidad" colspan="6" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}"/>
+                                    <field name="area_unidad" colspan="4" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}"/>
+                                    <field name="tipo_unidad" colspan="6" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}"/>
                                 </group>
-                                <group string="Validez" icon="calendar-check" col="10" colspan="10" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error'))]}">
-                                    <field name="tipo_mercado" colspan="5"/>
-                                    <field name="fecha_sesion" colspan="5" select="1"/>
+                                <group string="Validez" icon="calendar-check" col="4" colspan="10" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}">
+                                    <field name="tipo_mercado" colspan="5" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}"/>
+                                    <field name="num_sesion" colspan="5" select="2"
+                                           attrs="{'invisible':[('tipo_mercado','!=','MI')], 'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}" />
+                                    <field name="fecha_sesion" colspan="5" select="1" attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}"/>
+                                    <field name="tipo_necesidad" colspan="5"
+                                           attrs="{'invisible':[('tipo_mercado','!=','MI')], 'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}"/>
                                 </group>
                             </group>
-                            <group attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error'))]}">
+                            <group attrs="{'readonly':[('state', 'in', ('enviada', 'enviada_error', 'casacion'))]}">
                                 <field name="state" colspan="2" select="1"/>
                                 <field name="origen" colspan="4" select="1"/>
                                 <button string="Enviar Oferta" name="enviar_oferta" type="object" primary="1" icon="send" colspan="4"/>
                                 <field name="hora_ids" nolabel="1"/>
                             </group>
                         </page>
-                        <page string="Respuesta" attrs="{'invisible':[('state', 'not in', ('enviada', 'enviada_error'))]}">
+                        <page string="Respuesta" attrs="{'invisible':[('state', 'not in', ('enviada', 'enviada_error', 'casacion'))]}">
                             <group col="10">
                                 <group string="Mensaje" icon="message" col="3" colspan="3">
                                     <field name="id_mensaje_respuesta" colspan="3"/>
@@ -139,7 +147,8 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
         </record>
-        <menuitem name="Ofertas de OMIE" id="listado_ofertas" action="action_listar_ofertas" parent="menu_omie"/>
+        <menuitem name="Ofertas de OMIE" id="listado_ofertas"
+                  action="action_listar_ofertas" parent="menu_omie" sequence="1"/>
         <!--FIN OMIE OFERTA-->
     </data>
 </openerp>
