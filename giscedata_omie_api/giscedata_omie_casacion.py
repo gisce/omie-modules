@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
+import os
+from omie import ClientOMIE
 from giscedata_omie_api.giscedata_omie_oferta import (
     PERIODO_DIA, TIPO_MERCADO, CLASE_OFERTA, TIPO_NUM_SESION, UNIDAD_MEDIDA)
-from giscedata_omie_api.utils import get_pbf_dict, parse_pbf_reponse, get_phf_dict, parse_phf_reponse
-from omie import ClientOMIE
+from giscedata_omie_api.utils import get_pbf_dict, parse_pbf_reponse, get_phf_dict, parse_phf_reponse, get_phfc_dict, parse_phfc_reponse
 from osv import osv, fields
 from zeep import helpers
 from tools.service_utils import WebServiceTracker
@@ -209,6 +210,7 @@ class GiscedataOmieCasacion(osv.osv):
         'total_energia': fields.function(_get_total_energia, method=True, type="float", string="Medida total",
                                          readonly=True)
     }
+    _order = "fecha_sesion desc"
 
 
 GiscedataOmieCasacion()
@@ -232,6 +234,141 @@ class GiscedataOmieCasacionHora(osv.osv):
 
 
 GiscedataOmieCasacionHora()
+
+
+class GiscedataOmieCasacionContinua(osv.osv):
+
+    _name = 'giscedata.omie.casacion.continua'
+    _description = 'Modelo de la consulta 4144 de OMIE.'
+
+    def get_phfc_casation(self, cursor, uid, ids, context=None):
+        """
+        Retrieves casation through OMIE API and store data
+        :param cursor: OpenERP DB Cursor
+        :param uid: OpenERP User ID
+        :param ids: List of oferta IDs
+        :param context: OpenERP Current Context
+        :return: boolean
+        """
+        if context is None:
+            context = {}
+
+        read_params = [
+            'fecha_ronda', 'num_ronda', 'id_unidad',
+            'uni_medida', 'periodo', 'descripcion', 'medida_total'
+        ]
+
+        sessions = {}
+        for id in ids:
+            data = self.read(cursor, uid, id, read_params, context=context)
+            if not data:
+                continue
+
+            key = (
+                data['id_unidad'],
+                data['fecha_ronda'],
+                data['num_ronda'],
+                data['uni_medida'],
+                data['periodo'],
+                data['descripcion'],
+                data['medida_total']
+            )
+
+            if key not in sessions:
+                sessions[key] = data
+
+        for session in sessions.values():
+            params = {
+                'id_unidad': session['id_unidad'][0] if isinstance(session['id_unidad'], tuple) else session['id_unidad'],
+                'fecha_ronda': session['fecha_ronda'],
+                'num_ronda': session['num_ronda'],
+                'uni_medida': session['uni_medida'],
+                'periodo': session['periodo'],
+                'descripcion': session['descripcion'],
+                'medida_total': session['medida_total']
+            }
+            self.get_phfc_casation_from_params(cursor, uid, params, context=context)
+
+
+    def get_phfc_casation_from_params(self, cursor, uid, params, context=None):
+        """
+        Aïlla la lògica de recuperació de cassació donat un dict de paràmetres.
+        """
+        if context is None:
+            context = {}
+
+        # TODO: Treure les rutes del CRT/KEY i deixar la crida sense paràmetres
+        client = ClientOMIE(crt_path='/home/jtrull/Documentos/somre.crt', crt_key='/home/jtrull/Documentos/somre.key')
+
+        casacion_dict = get_phfc_dict(params)
+
+        with WebServiceTracker(
+                uid=uid, obj='giscedata.omie.casacion.continua',
+                method='get_phfc_casation_from_params',
+                logger_name='openerp.omie'
+        ) as cron_wst:
+
+            cron_wst.log(logging.INFO,
+                         msg="Obtenint casació contínua (Sessió 24) des d'OMIE per la UOF {} i la data {}...".format(
+                             params['id_unidad'], params['fecha_ronda']
+                         ), status='Running')
+
+            try:
+                res = client.ServicioEjecucionConsultaEncolumnada(
+                    MensajeEjecucionConsulta=casacion_dict)
+                print(res)
+            except Exception as e:
+                cron_wst.log(logging.ERROR, msg="No s'ha pogut obtenir la cassació.", status='Failed')
+                raise osv.except_osv('Error:', e)
+
+            res_dict = helpers.serialize_object(res)
+
+            if res_dict.get('Respuesta', []):
+                codi = res_dict['Respuesta'][0]['CodigoRespuesta']['v']
+                if 'NO-DISPONIBLE' in codi:
+                    msg = res_dict['Respuesta'][0]['TextoRespuesta'][0]
+                    cron_wst.log(logging.ERROR, msg="Cassació no disponible.", status='Failed')
+                    raise osv.except_osv('Error', msg)
+
+            # Eliminar cassacions anteriors
+            casation_ids = self.search(cursor, uid, [
+                ('id_unidad', '=', params['id_unidad']),
+                ('fecha_ronda', '=', params['fecha_ronda']),
+                ('num_ronda', '=', params['num_ronda']),
+                ('periodo', '=', params['periodo']),
+                ('descripcion', '=', params['descripcion']),
+                ('uni_medida', '=', params['uni_medida']),
+                ('medida_total', '=', params['medida_total']),
+            ], context=context)
+
+            if casation_ids:
+                self.unlink(cursor, uid, casation_ids)
+
+            cas_vals = {
+                'id_unidad': params['id_unidad'],
+                'fecha_ronda': params['fecha_ronda'],
+                'num_ronda': params['num_ronda'],
+                'periodo': params['periodo'],
+                'descripcion': params['descripcion'],
+                'uni_medida': params['uni_medida'],
+                'medida_total': params['medida_total']
+            }
+
+            return self.create(cursor, uid, cas_vals, context=context)
+
+    _columns = {
+        'id_unidad': fields.char("ID Unidad", size=16, required=True, readonly=True),
+        'fecha_ronda': fields.date("Fecha Ronda", size=16, required=True, readonly=True),
+        'num_ronda': fields.integer("Número de Ronda", size=16, required=True, readonly=True),
+        'periodo': fields.integer("Periodo horario del día", size=16, readonly=True),
+        'descripcion': fields.char("Descripción periodo", size=16, readonly=True),
+        'uni_medida': fields.selection(UNIDAD_MEDIDA, 'Unidad de Medida', size=16, required=True, readonly=True),
+        'medida_total': fields.float('Medida total', size=16, readonly=True)
+    }
+    _order = "fecha_sesion desc"
+
+
+GiscedataOmieCasacionContinua()
 
 
 class GiscedataOmieOfertaExtend(osv.osv):

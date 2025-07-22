@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openerp>
+    <data>
+        <record id="view_wizard_consulta_sesiones_form" model="ir.ui.view">
+            <field name="name">wizard.consulta.mercado.continuo.form</field>
+            <field name="model">wizard.consulta.mercado.continuo</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Consultar Sesiones del Mercado Contínuo">
+                    <group col="10">
+                        <label string="Consultar la Sesiones del Mercado Contínuo en Tiempo Real." colspan="10"/>
+                        <button icon="gtk-cancel" special="cancel" string="Cancelar" type="object" colspan="5"/>
+				        <button icon="gtk-ok" name="get_phfc_casation" string="Consultar Sesión" type="object" colspan="5"/>
+                    </group>
+                </form>
+            </field>
+        </record>
+        <record id="action_wizard_consulta_mercado_continuo" model="ir.actions.act_window">
+            <field name="name">Consultar Sesiones del Mercado Contínuo</field>
+            <field name="res_model">wizard.consulta.casaciones.continuas</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="view_wizard_consulta_mercado_continuo_form"/>
+            <field name="target">new</field>
+        </record>
+        <record id="value_consulta_sesiones" model="ir.values">
+            <field name="object" eval="1"/>
+            <field name="name">Consultar Sesiones del Mercado Contínuo</field>
+            <field name="key2">client_action_multi</field>
+            <field name="key">action</field>
+            <field name="value" eval="'ir.actions.act_window,'+str(ref('action_wizard_consulta_mercado_continuo'))" />
+        </record>
+        <menuitem name="Consultar Sesiones del Mercado Contínuo" id="consulta_mercado_continuo"
+                  action="action_wizard_consulta_mercado_continuo" parent="menu_omie" sequence="100"/>
+    </data>
+</openerp>

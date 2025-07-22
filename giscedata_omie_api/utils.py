@@ -161,6 +161,85 @@ def parse_phf_reponse(res_casacion, magn):
 
     return res, is_qh
 
+def get_phfc_dict(params):
+    """
+    Prepares OMIE parameters for request 4144
+    :param params: dict
+    :return: dict
+    """
+
+    casacion_dict = {
+        'CodConsulta': '4144',  # Energías PHFC por Unidad
+        'Parametros': {
+            '_value_1': [
+                {
+                    'Txt': {
+                        'n': 'Unidad',
+                        'v': params['id_unidad']
+                    }
+                },
+                {
+                    'Fec': {
+                        'n': 'FeRonda',
+                        'v': params['fecha_ronda']
+                    }
+                },
+                {
+                    'Ses': {
+                        'n': 'NuRonda',
+                        'v': '24' # TODO: Passar hardcode a la funció que crida el dict
+                    }
+                },
+                {
+                    'Txt': {
+                        'n': 'UMedida',
+                        'v': params['uni_medida']
+                    }
+                }
+            ]
+        }
+    }
+
+    return casacion_dict
+
+# def parse_phfc_reponse(res_casacion, magn):
+#     """
+#     Addapt format from OMIE 5608 reponse to model data to update
+#     :param res_casacion: dict
+#     :param magn: str in ('P', 'E')
+#     :return: tuple (list of dict, boolean)
+#     """
+#     TODO: Mirar si es necessita parser i si no, borrar aquest tros de codi (Copiat de la 5608)
+#     # Parse and adapt to list of dict
+#     res = []
+#     is_qh = True
+#
+#     for regs in res_casacion.get('Fila', []):
+#         for reg in regs:
+#             data = regs[reg]
+#             period = False
+#             measure = False
+#             desc = False
+#             for d in data:
+#                 for val in d.values():
+#                     if val:
+#                         if val['n'] == 'Periodo':
+#                             period = str(val['v'])
+#                         elif val['n'] == 'Energia' and magn == 'E':
+#                             measure = abs(float(val['v']))
+#                         elif val['n'] == 'Potencia' and magn == 'P':
+#                             measure = abs(float(val['v']))
+#                         elif val['n'] == 'Descripción':
+#                             desc = val['v']
+#                             if 'Q' in desc and not is_qh:
+#                                 is_qh = True
+#                         else:
+#                             pass
+#             if period and measure and desc:
+#                 res.append({'num': int(period), 'per': period, 'ctn': measure, 'desc': desc})
+#
+#     return res, is_qh
+
 
 def convert_casation_to_qh(casation, uni_medida):
     """
