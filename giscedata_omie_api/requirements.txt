@@ -1,1 +1,1 @@
-omie
+git+ssh://git@github.com/gisce/omie.git
