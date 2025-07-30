@@ -26,3 +26,9 @@
 "access_giscedata_omie_casacion_hora_r","giscedata.omie.casacion.hora","model_giscedata_omie_casacion_hora","group_giscedata_omie_oferta_r",1,0,0,0
 "access_giscedata_omie_casacion_hora_w","giscedata.omie.casacion.hora","model_giscedata_omie_casacion_hora","group_giscedata_omie_oferta_w",1,1,1,0
 "access_giscedata_omie_casacion_hora_u","giscedata.omie.casacion.hora","model_giscedata_omie_casacion_hora","group_giscedata_omie_oferta_u",1,1,1,1
+"access_giscedata_omie_programa_casacion_r","giscedata.omie.programa.casacion","model_giscedata_omie_programa_casacion","group_giscedata_omie_oferta_r",1,0,0,0
+"access_giscedata_omie_programa_casacion_w","giscedata.omie.programa.casacion","model_giscedata_omie_programa_casacion","group_giscedata_omie_oferta_w",1,1,1,0
+"access_giscedata_omie_programa_casacion_u","giscedata.omie.programa.casacion","model_giscedata_omie_programa_casacion","group_giscedata_omie_oferta_u",1,1,1,1
+"access_wizard_consulta_omie_r","wizard.consulta.omie","model_wizard_consulta_omie","group_giscedata_omie_oferta_r",1,0,0,0
+"access_wizard_consulta_omie_w","wizard.consulta.omie","model_wizard_consulta_omie","group_giscedata_omie_oferta_w",1,1,1,0
+"access_wizard_consulta_omie_u","wizard.consulta.omie","model_wizard_consulta_omie","group_giscedata_omie_oferta_u",1,1,1,1

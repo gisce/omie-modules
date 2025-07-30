@@ -55,7 +55,7 @@
             <field name="model">giscedata.omie.casacion</field>
             <field name="type">tree</field>
             <field name="arch" type="xml">
-                <tree string="Casaciones de OMIE Mercado Diario">
+                <tree string="Casaciones de OMIE Mercado Diario/Intradiario">
                     <field name="name"/>
                     <field name="id_unidad"/>
                     <field name="tipo_mercado"/>
@@ -73,7 +73,7 @@
             <field name="model">giscedata.omie.casacion</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
-                <form string="Casación de OMIE Mercado Diario">
+                <form string="Casación de OMIE Mercado Diario/Intradiario">
                     <field name="name"/>
                     <group string="Sesión" icon="calendar-check" col="10" colspan="10">
                         <field name="id_unidad" colspan="2"/>
@@ -99,7 +99,7 @@
 
         <!-- ACCIONES -->
         <record model="ir.actions.act_window" id="action_listar_casacions">
-            <field name="name">Casaciones de OMIE Mercado Diario</field>
+            <field name="name">Casaciones de OMIE Mercado Diario/Intradiario</field>
             <field name="res_model">giscedata.omie.casacion</field>
             <field name="src_model">giscedata.omie.casacion</field>
             <field name="view_type">form</field>
@@ -107,25 +107,26 @@
         </record>
 
         <!-- ENLACES -->
-        <menuitem name="Casaciones de OMIE" id="menu_omie_casaciones" parent="menu_omie" sequence="1"/>
-        <menuitem name="Casaciones de OMIE Mercado Diario" id="listado_casaciones"
+        <menuitem name="Programas y Casaciones de OMIE" id="menu_omie_casaciones" parent="menu_omie" sequence="1"/>
+        <menuitem name="Casaciones de OMIE Mercado Diario/Intradiario" id="listado_casaciones"
                   action="action_listar_casacions" parent="menu_omie_casaciones" sequence="1"/>
 
-        <!--OMIE CASACION -->
+        <!--OMIE CASACION MERCADO CONTINUO -->
         <record model="ir.ui.view" id="giscedata_omie_casacion_continua_tree">
             <field name="name">giscedata.omie.casacion.continua.tree</field>
             <field name="model">giscedata.omie.casacion.continua</field>
             <field name="type">tree</field>
             <field name="arch" type="xml">
-                <tree string="Casaciones de OMIE Contínuas">
+                <tree string="Casaciones de OMIE en Mercado Continuo">
                     <field name="id_unidad"/>
                     <field name="fecha_ronda"/>
                     <field name="num_ronda"/>
                     <field name="periodo"/>
                     <field name="descripcion"/>
+                    <field name="tipo_oferta"/>
                     <field name="uni_medida"/>
                     <field name="medida_total"/>
-			    </tree>
+                </tree>
             </field>
         </record>
         <record model="ir.ui.view" id="giscedata_omie_casacion_continua_form">
@@ -133,19 +134,21 @@
             <field name="model">giscedata.omie.casacion.continua</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
-                <form string="Casación de OMIE contínua">
-                    <group string="Sesión" icon="calendar-check" col="10" colspan="10">
+                <form string="Casación de OMIE en Mercado Continuo">
+                    <group string="Unidad de Oferta" icon="file-power" col="10" colspan="10">
                         <field name="id_unidad" colspan="2"/>
+                    </group>
+                    <group string="Fecha y Ronda" icon="calendar-check" col="10" colspan="10">
                         <field name="fecha_ronda" colspan="2"/>
                         <field name="num_ronda" colspan="2"/>
+                    </group>
+                    <group string="Periodo" icon="clock" col="10" colspan="10">
                         <field name="periodo" colspan="2"/>
                         <field name="descripcion" colspan="2"/>
-                        <!-- TODO: Borrar aquest botó quan el wizard estigui fet -->
-                        <button string="Descargar casación PHFC" name="get_phfc_casation" type="object"
-                                primary="1" icon="clipboard-text" colspan="4"/>
                     </group>
-                    <group string="Clase de Oferta" icon="file-info" col="10" colspan="10">
-                        <field name="uni_medida" colspan="2"/>
+                    <group string="Medida" icon="bolt" col="9" colspan="10">
+                        <field name="tipo_oferta" colspan="3"/>
+                        <field name="uni_medida" colspan="3"/>
                         <field string="Medida Total (MWh)" name="medida_total" colspan="3"
                                attrs="{'invisible':[('uni_medida', '!=', 'E')]}"/>
                         <field string="Medida Total (MW)" name="medida_total" colspan="3"
@@ -157,7 +160,7 @@
 
         <!-- ACCIONES -->
         <record model="ir.actions.act_window" id="action_listar_casacions_continuas">
-            <field name="name">Casaciones de OMIE Contínuas</field>
+            <field name="name">Casaciones de OMIE Mercado Continuo</field>
             <field name="res_model">giscedata.omie.casacion.continua</field>
             <field name="src_model">giscedata.omie.casacion.continua</field>
             <field name="view_type">form</field>
@@ -165,7 +168,60 @@
         </record>
 
         <!-- ENLACES -->
-        <menuitem name="Casaciones de OMIE Contínuas" id="listado_casaciones_continuas"
+        <menuitem name="Casaciones de OMIE Mercado Continuo" id="listado_casaciones_continuas"
                   action="action_listar_casacions_continuas" parent="menu_omie_casaciones" sequence="2"/>
+
+        <!--OMIE PROGRAMA BASE CASACION -->
+        <record model="ir.ui.view" id="giscedata_omie_programa_casacion_tree">
+            <field name="name">giscedata.omie.programa.casacion.tree</field>
+            <field name="model">giscedata.omie.programa.casacion</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Programa Base de Casación de OMIE">
+                    <field name="id_unidad"/>
+                    <field name="fecha"/>
+                    <field name="periodo"/>
+                    <field name="descripcion"/>
+                    <field name="uni_medida"/>
+                    <field name="medida_total"/>
+			    </tree>
+            </field>
+        </record>
+        <record model="ir.ui.view" id="giscedata_omie_programa_casacion_form">
+            <field name="name">giscedata.omie.programa.casacion.form</field>
+            <field name="model">giscedata.omie.programa.casacion</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Programa Base de Casación de OMIE">
+                    <group string="Unidad de Oferta" icon="file-power" col="4" colspan="4">
+                        <field name="id_unidad" colspan="2"/>
+                    </group>
+                    <group string="Fecha y período" icon="calendar-clock" col="4" colspan="4">
+                        <field name="fecha"/>
+                        <field name="periodo"/>
+                    </group>
+                    <group string="Medida" icon="bolt" col="4" colspan="4">
+                        <field name="uni_medida" colspan="2"/>
+                        <field string="Medida Total (MWh)" name="medida_total" colspan="2"
+                               attrs="{'invisible':[('uni_medida', '!=', 'E')]}"/>
+                        <field string="Medida Total (MW)" name="medida_total" colspan="2"
+                               attrs="{'invisible':[('uni_medida', '!=', 'P')]}"/>
+                    </group>
+                </form>
+            </field>
+        </record>
+
+        <!-- ACCIONES -->
+        <record model="ir.actions.act_window" id="action_listar_programa_casacions">
+            <field name="name">Programa Base de Casación de OMIE</field>
+            <field name="res_model">giscedata.omie.programa.casacion</field>
+            <field name="src_model">giscedata.omie.programa.casacion</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <!-- ENLACES -->
+        <menuitem name="Programa Base de Casación de OMIE" id="listado_programa_casaciones"
+                  action="action_listar_programa_casacions" parent="menu_omie_casaciones" sequence="3"/>
     </data>
 </openerp>
