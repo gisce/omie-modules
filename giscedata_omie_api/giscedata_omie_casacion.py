@@ -260,7 +260,7 @@ class GiscedataOmieCasacionContinua(osv.osv):
             context = {}
 
         with WebServiceTracker(uid=uid, obj='giscedata.omie.casacion.continua',
-                               method='get_phfc_casation_from_params', logger_name='openerp.omie') as cron_wst:
+                               method='get_phfc_casation', logger_name='openerp.omie') as cron_wst:
 
             cron_wst.log(logging.INFO,
                          msg="Obtenint cassació contínua des d'OMIE per la UOF {}, data {} i ronda {}...".format(
@@ -347,7 +347,7 @@ class GiscedataOmieProgramaBaseCasacion(osv.osv):
     _name = 'giscedata.omie.programa.casacion'
     _description = 'Representa una hora del programa base de casación de una Unidad de Oferta en OMIE.'
 
-    _order = "fecha_ronda desc, periodo desc"
+    _order = "fecha desc, periodo desc"
 
     def get_pbc_casation(self, cursor, uid, params, context=None):
         """
