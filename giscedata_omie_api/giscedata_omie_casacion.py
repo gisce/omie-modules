@@ -103,7 +103,7 @@ class GiscedataOmieCasacion(osv.osv):
             if params['num_sesion'] is False:
                 casation = parse_pbf_reponse(res_casacion_dict, params['uni_medida'])
             else:
-                casation = parse_phf_reponse(res_casacion_dict, params['uni_medida'])
+                casation, is_qh = parse_phf_reponse(res_casacion_dict, params['uni_medida'])
 
             # Preventive delete of casation with same date, type, session, class and measure
             search_params = [('id_unidad', '=', params['id_unidad']),

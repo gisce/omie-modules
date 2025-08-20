@@ -196,9 +196,10 @@
                     <group string="Unidad de Oferta" icon="file-power" col="4" colspan="4">
                         <field name="id_unidad" colspan="2"/>
                     </group>
-                    <group string="Fecha y período" icon="calendar-clock" col="4" colspan="4">
-                        <field name="fecha"/>
-                        <field name="periodo"/>
+                    <group string="Fecha y período" icon="calendar-clock" col="6" >
+                        <field name="fecha" colspan="2"/>
+                        <field name="periodo" colspan="2"/>
+                        <field name="descripcion" colspan="2"/>
                     </group>
                     <group string="Medida" icon="bolt" col="4" colspan="4">
                         <field name="uni_medida" colspan="2"/>
