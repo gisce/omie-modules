@@ -6,7 +6,9 @@ from giscedata_omie_api.utils import (
     get_pbf_dict, parse_pbf_reponse,
     get_phf_dict, parse_phf_reponse,
     get_phfc_dict, parse_phfc_reponse,
-    get_pbc_dict, parse_pbc_reponse)
+    get_pbc_dict, parse_pbc_reponse,
+    _OMIE_DAILY_QH_DATE_START,
+    convert_casation_to_qh)
 from omie import ClientOMIE
 from osv import osv, fields
 from zeep import helpers
@@ -377,7 +379,6 @@ class GiscedataOmieProgramaBaseCasacion(osv.osv):
 
             client = ClientOMIE()
 
-            # TODO test to parse and store data from reponse
             try:
                 res = client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=casacion_dict)
             except Exception as e:
@@ -398,6 +399,10 @@ class GiscedataOmieProgramaBaseCasacion(osv.osv):
             cron_wst.log(logging.INFO, msg="Emmagatzemant programa de cassació...", status='Running')
 
             parsed_casation = parse_pbc_reponse(res_dict, params['uni_medida'])
+
+            # Convert to QH if needed
+            if params['fecha_ronda'] < _OMIE_DAILY_QH_DATE_START:
+                parsed_casation = convert_casation_to_qh(parsed_casation)
 
             # Eliminar cassacions anteriors
             search_params = [('id_unidad', '=', params['id_unidad']),

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+_OMIE_DAILY_QH_DATE_START = '2025-10-01'
 
 def get_pbc_dict(params):
     """
@@ -316,11 +317,10 @@ def parse_phfc_reponse(res_casacion, magn):
     return res
 
 
-def convert_casation_to_qh(casation, uni_medida):
+def convert_casation_to_qh(casation):
     """
-    Converts casation to QH format, fixing energy if needed
+    Converts casation to QH format
     :param casation: list of dict
-    :param uni_medida: str in ('E', 'P')
     :return: list of dict
     """
     res = []
@@ -332,9 +332,6 @@ def convert_casation_to_qh(casation, uni_medida):
             per = str(num).zfill(2)
             desc = 'H{}Q{}'.format(d.get('num'), period+1)
             ctn = d.get('ctn', 0.0)
-            # Energy is divided by 4, Power is kept as is
-            if uni_medida == 'E':
-                ctn = ctn / 4.0
             vals = {'num': num,
                     'per': per,
                     'desc': desc,
