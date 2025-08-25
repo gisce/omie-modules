@@ -15,6 +15,7 @@
     'wizard/wizard_consulta_fecha_hora_view.xml',
     'wizard/wizard_consulta_sesiones_view.xml',
     'wizard/wizard_consulta_datos_usuario_view.xml',
+    'wizard/wizard_consulta_omie_view.xml',
     'security/giscedata_omie_oferta_security.xml',
     'security/ir.model.access.csv',
   ],

@@ -1,6 +1,83 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+_OMIE_DAILY_QH_DATE_START = '2025-10-01'
+
+def get_pbc_dict(params):
+    """
+    Prepares OMIE parameters for request 5223
+    :param params: dict
+    :return: dict
+    """
+
+    casacion_dict = {
+        'CodConsulta': '5223',  # Programa Base de Casación (PBC) por unidad ofertante
+        'Parametros': {
+            '_value_1': [
+                {
+                    'Txt': {
+                        'n': 'UOfertante',
+                        'v': params['id_unidad']
+                    }
+                },
+                {
+                    'Num': None
+                },
+                {
+                    'Fec': {
+                        'n': 'FechaCasacion',
+                        'v': params['fecha_ronda']
+                    }
+                },
+                {
+                    'Ses': None
+                },
+                {
+                    'Txt': {
+                        'n': 'UMedida',
+                        'v': params['uni_medida']
+                    }
+                },
+            ]
+        }
+    }
+
+    return casacion_dict
+
+def parse_pbc_reponse(res_casacion, magn):
+    """
+    Addapt format from OMIE 5223 reponse to model data to update
+    :param res_casacion: dict
+    :param magn: str in ('P', 'E')
+    :return: list of dict
+    """
+    # Parse and addapt to list of dict
+    res = []
+
+    for regs in res_casacion.get('Fila', []):
+        for reg in regs:
+            data = regs[reg]
+            period = False
+            measure = False
+            desc = False
+            for d in data:
+                for val in d.values():
+                    if val:
+                        if val['n'] == 'Periodo':
+                            period = str(val['v'])
+                        elif val['n'] == 'Energia' and magn == 'E':
+                            measure = abs(float(val['v']))
+                        elif val['n'] == 'Potencia' and magn == 'P':
+                            measure = abs(float(val['v']))
+                        elif val['n'] == 'Descripción':
+                            desc = val['v']
+                        else:
+                            pass
+            if period and measure and desc:
+                res.append({'num': int(period), 'per': period, 'ctn': measure, 'desc': desc})
+
+    return res
+
 
 def get_pbf_dict(params):
     """
@@ -10,7 +87,7 @@ def get_pbf_dict(params):
     """
 
     casacion_dict = {
-        'CodConsulta': '5222',  # Energías PBF por unidad ofertante
+        'CodConsulta': '5222',  # Programa Diario Base de Funcionamiento (PBF) por unidad ofertante
         'Parametros': {
             '_value_1': [
                 {
@@ -87,7 +164,7 @@ def get_phf_dict(params):
     """
 
     casacion_dict = {
-        'CodConsulta': '5608',  # Energías PHF por unidad ofertante
+        'CodConsulta': '5608',  # Programa Horario Final (PHF) por unidad ofertante
         'Parametros': {
             '_value_1': [
                 {
@@ -161,12 +238,89 @@ def parse_phf_reponse(res_casacion, magn):
 
     return res, is_qh
 
-
-def convert_casation_to_qh(casation, uni_medida):
+def get_phfc_dict(params):
     """
-    Converts casation to QH format, fixing energy if needed
+    Prepares OMIE parameters for request 4144
+    :param params: dict
+    :return: dict
+    """
+
+    casacion_dict = {
+        'CodConsulta': '4144',  # Energías PHFC por Unidad
+        'Parametros': {
+            '_value_1': [
+                {
+                    'Txt': {
+                        'n': 'Unidad',
+                        'v': params['id_unidad']
+                    }
+                },
+                {
+                    'Fec': {
+                        'n': 'FeRonda',
+                        'v': params['fecha_ronda']
+                    }
+                },
+                {
+                    'Ses': {
+                        'n': 'NuRonda',
+                        'v': params['num_ronda']
+                    }
+                },
+                {
+                    'Txt': {
+                        'n': 'UMedida',
+                        'v': params['uni_medida']
+                    }
+                }
+            ]
+        }
+    }
+
+    return casacion_dict
+
+def parse_phfc_reponse(res_casacion, magn):
+    """
+    Addapt format from OMIE 5608 reponse to model data to update
+    :param res_casacion: dict
+    :param magn: str in ('P', 'E')
+    :return: list of dict
+    """
+    # Parse and adapt to list of dict
+    res = []
+
+    for regs in res_casacion.get('Fila', []):
+        for reg in regs:
+            data = regs[reg]
+            period = False
+            measure = False
+            desc = False
+            tipo_oferta = False
+            for d in data:
+                for val in d.values():
+                    if val:
+                        if val['n'] == 'Periodo':
+                            period = str(val['v'])
+                        elif val['n'] == 'TipoOferta':
+                            tipo_oferta = val['v']
+                        elif val['n'] == 'Energia' and magn == 'E':
+                            measure = abs(float(val['v']))
+                        elif val['n'] == 'Potencia' and magn == 'P':
+                            measure = abs(float(val['v']))
+                        elif val['n'] == 'Descripción':
+                            desc = val['v']
+                        else:
+                            pass
+            if period and measure and desc and tipo_oferta:
+                res.append({'num': int(period), 'per': period, 'ctn': measure, 'desc': desc, 'tipo_oferta': tipo_oferta})
+
+    return res
+
+
+def convert_casation_to_qh(casation):
+    """
+    Converts casation to QH format
     :param casation: list of dict
-    :param uni_medida: str in ('E', 'P')
     :return: list of dict
     """
     res = []
@@ -178,9 +332,6 @@ def convert_casation_to_qh(casation, uni_medida):
             per = str(num).zfill(2)
             desc = 'H{}Q{}'.format(d.get('num'), period+1)
             ctn = d.get('ctn', 0.0)
-            # Energy is divided by 4, Power is kept as is
-            if uni_medida == 'E':
-                ctn = ctn / 4.0
             vals = {'num': num,
                     'per': per,
                     'desc': desc,

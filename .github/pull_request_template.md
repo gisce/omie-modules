@@ -34,11 +34,12 @@
 ## Relacionat
 
 * Pots veure totes les [possibles_paraules_per_accions_automàtiques_amb_el_missatge](https://help.github.com/articles/closing-issues-using-keywords/)*
-
+* Origen de la tasca: TASK-
 
 ## Checklist
 
 - [ ] Test code
+- [ ] Verificat amb client
 - [ ] Si es modifica alguna vista incloure una captura indicant què es modifica
 - [ ] Si es modifica un report adjuntar el report
 - [ ] Migration data

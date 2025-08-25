@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openerp>
+    <data>
+        <record id="view_wizard_consulta_omie_form" model="ir.ui.view">
+            <field name="name">wizard.consulta.omie.form</field>
+            <field name="model">wizard.consulta.omie</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Consultar Programas y Casaciones de OMIE">
+                    <field name="state" invisible="1"/>
+                    <group string="Programa/Casación y Unidad de Oferta" col="4" colspan="4" icon="info-circle">
+                        <field name="indicador_omie"/>
+                        <field name="id_unidad"/>
+                    </group>
+                    <group string="Fecha" col="4" colspan="4" icon="calendar">
+                        <field name="fecha_ronda" colspan="2"/>
+                        <field name="num_ronda" colspan="2" attrs="{'invisible':[('indicador_omie','!=','phfc')]}"/>
+                    </group>
+                    <group string="Parámetros" col="4" colspan="4" icon="adjustments">
+                        <field name="uni_medida"/>
+                    </group>
+                    <group attrs="{'invisible':[('state','!=','init')]}">
+				        <button icon="gtk-ok" name="consultar_en_omie" string="Consultar en OMIE" type="object"
+                                primary="1" colspan="2"/>
+                        <button icon="gtk-cancel" special="cancel" string="Cancelar" type="object"
+                                danger="1" colspan="2"/>
+                    </group>
+                    <group attrs="{'invisible':[('state','=','init')]}">
+                        <field name="info" colspan="4"/>
+                        <button special="cancel" string="Cerrar" icon="gtk-close" colspan="4"/>
+                    </group>
+                </form>
+            </field>
+        </record>
+        <record id="action_wizard_consulta_omie" model="ir.actions.act_window">
+            <field name="name">Consultar Programas y Casaciones de OMIE</field>
+            <field name="res_model">wizard.consulta.omie</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="view_wizard_consulta_omie_form"/>
+            <field name="target">new</field>
+        </record>
+        <record id="value_wizard_consulta_omie" model="ir.values">
+            <field name="object" eval="1"/>
+            <field name="name">Consultar Programas y Casaciones de OMIE</field>
+            <field name="key2">client_action_multi</field>
+            <field name="key">action</field>
+            <field name="value" eval="'ir.actions.act_window,'+str(ref('action_wizard_consulta_omie'))" />
+        </record>
+        <menuitem name="Consultar Programas y Casaciones de OMIE" id="consulta_omie"
+                  action="action_wizard_consulta_omie" parent="menu_omie_casaciones" sequence="10"/>
+    </data>
+</openerp>
