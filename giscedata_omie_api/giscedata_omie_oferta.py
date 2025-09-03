@@ -504,7 +504,7 @@ class GiscedataOmieOfertaExtend(osv.osv):
                 'Comentario': oferta_vals_filtered.get('comentario_oferta', ""),
                 'Detalle': {
                     'Dia': oferta_vals_filtered.get('fecha_sesion')[:10],
-                    'Resolucion': 'PT60M',  # PT60M para horario, PT15M para cuartohorario
+                    'Resolucion': 'PT15M',  # PT60M para horario, PT15M para cuartohorario
                     'Blq': list_horas
                 }
             },
