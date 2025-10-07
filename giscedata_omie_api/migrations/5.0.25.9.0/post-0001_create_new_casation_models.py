@@ -19,8 +19,7 @@ def up(cursor, installed_version):
     # Create/update views
     file_name = 'giscedata_omie_casacion_view.xml'
     record_ids = ['giscedata_omie_casacion_tree', 'giscedata_omie_casacion_form',
-                  'action_listar_casacions', 'listado_casaciones',
-                  'menu_omie_casaciones',
+                  'menu_omie_casaciones', 'action_listar_casacions', 'listado_casaciones',
                   'giscedata_omie_casacion_continua_tree', 'giscedata_omie_casacion_continua_form',
                   'action_listar_casacions_continuas', 'listado_casaciones_continuas',
                   'giscedata_omie_programa_casacion_tree', 'giscedata_omie_programa_casacion_form',
