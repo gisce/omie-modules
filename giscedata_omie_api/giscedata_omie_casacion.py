@@ -193,18 +193,18 @@ class GiscedataOmieCasacion(osv.osv):
         'name': fields.char('Descripción', size=32, required=True),
         'tipo_mercado': fields.selection(
             TIPO_MERCADO, "Tipo de Mercado", help="MD: Mercado Diario, MI: Mercado Intradiario",
-            required=True, readonly=True
+            required=True, readonly=True, select=1
         ),
-        'num_sesion': fields.selection(TIPO_NUM_SESION, "Sesión MI", readonly=True,
+        'num_sesion': fields.selection(TIPO_NUM_SESION, "Sesión MI", readonly=True, select=1,
                                        help="""
                                             Indica el número de sesión de Mercado Intradiario Europeo (Intraday Auction)\n
                                             * IDA1: Abierto a las 14:00 del día D+1\n
                                             * IDA2: Abierto a las 21:00 del día D+1\n
                                             * IDA3: Abierto a las 09:00 del día D\n
                                             """),
-        'fecha_sesion': fields.date("Fecha Sesión", help=_("Fecha del día a ofertar"),
+        'fecha_sesion': fields.date("Fecha Sesión", select=1, help=_("Fecha del día a ofertar"),
                                     required=True, readonly=True),
-        'clase_oferta': fields.selection(CLASE_OFERTA, "Clase de Oferta", help=_("C: Compra, V: Venta"),
+        'clase_oferta': fields.selection(CLASE_OFERTA, "Clase de Oferta", select=1, help=_("C: Compra, V: Venta"),
                                          required=True, readonly=True),
         'hora_ids': fields.one2many('giscedata.omie.casacion.hora', 'casacion_id',
                                     "Horas de la casación", ondelete='cascade',
@@ -213,7 +213,7 @@ class GiscedataOmieCasacion(osv.osv):
                                        readonly=True,
                                        help="Determina si la medida de la oferta es de Energía o de Potencia."),
         'id_unidad': fields.char("ID Unidad", size=16, help="Código de unidad ofertante o física.",
-                                 required=True, readonly=True),
+                                 select=1, required=True, readonly=True),
         'total_energia': fields.function(_get_total_energia, method=True, type="float", string="Medida total",
                                          readonly=True)
     }
@@ -330,12 +330,12 @@ class GiscedataOmieCasacionContinua(osv.osv):
             return True
 
     _columns = {
-        'id_unidad': fields.char("ID Unidad", size=16, required=True, readonly=True),
-        'fecha_ronda': fields.date("Fecha de Ronda", size=16, required=True, readonly=True),
-        'num_ronda': fields.integer("Número de Ronda", size=16, required=True, readonly=True),
+        'id_unidad': fields.char("ID Unidad", size=16, select=1, required=True, readonly=True),
+        'fecha_ronda': fields.date("Fecha de Ronda", size=16, select=1, required=True, readonly=True),
+        'num_ronda': fields.integer("Número de Ronda", size=16, select=1, required=True, readonly=True),
         'periodo': fields.integer("Periodo horario del día", size=16, readonly=True),
         'descripcion': fields.char("Descripción periodo", size=16, readonly=True),
-        'tipo_oferta': fields.selection(CLASE_OFERTA,"Tipo de Oferta", readonly=True),
+        'tipo_oferta': fields.selection(CLASE_OFERTA,"Tipo de Oferta", select=1, readonly=True),
         'uni_medida': fields.selection(UNIDAD_MEDIDA, 'Unidad de Medida', size=16, required=True, readonly=True),
         'medida_total': fields.float('Medida total', size=16, readonly=True)
     }
@@ -437,8 +437,8 @@ class GiscedataOmieProgramaBaseCasacion(osv.osv):
             return True
 
     _columns = {
-        'id_unidad': fields.char("ID Unidad", size=16, required=True, readonly=True),
-        'fecha': fields.date("Fecha", size=16, required=True, readonly=True),
+        'id_unidad': fields.char("ID Unidad", size=16, required=True, select=1, readonly=True),
+        'fecha': fields.date("Fecha", size=16, required=True, select=1, readonly=True),
         'periodo': fields.integer("Periodo horario del día", size=16, readonly=True),
         'descripcion': fields.char("Descripción periodo", size=16, readonly=True),
         'uni_medida': fields.selection(UNIDAD_MEDIDA, 'Unidad de Medida', size=16, required=True, readonly=True),

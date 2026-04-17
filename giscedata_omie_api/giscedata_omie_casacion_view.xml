@@ -76,14 +76,14 @@
                 <form string="Casación de OMIE Mercado Diario/Intradiario">
                     <field name="name"/>
                     <group string="Sesión" icon="calendar-check" col="10" colspan="10">
-                        <field name="id_unidad" colspan="2"/>
-                        <field name="tipo_mercado" colspan="2"/>
-                        <field name="fecha_sesion" colspan="3"/>
-                        <field name="num_sesion" colspan="3"
+                        <field name="id_unidad" colspan="2" select="1"/>
+                        <field name="tipo_mercado" colspan="2" select="1"/>
+                        <field name="fecha_sesion" colspan="3" select="1"/>
+                        <field name="num_sesion" colspan="3" select="1"
                                attrs="{'invisible':[('tipo_mercado', '!=', 'MI')]}"/>
                     </group>
                     <group string="Clase de Oferta" icon="file-info" col="10" colspan="10">
-                        <field name="clase_oferta" colspan="2"/>
+                        <field name="clase_oferta" colspan="2" select="1"/>
                         <field name="uni_medida" colspan="2"/>
                         <field string="Medida Total (MWh)" name="total_energia" colspan="3"
                                attrs="{'invisible':[('uni_medida', '!=', 'E')]}"/>
@@ -136,18 +136,18 @@
             <field name="arch" type="xml">
                 <form string="Casación de OMIE en Mercado Continuo">
                     <group string="Unidad de Oferta" icon="file-power" col="10" colspan="10">
-                        <field name="id_unidad" colspan="2"/>
+                        <field name="id_unidad" select="1" colspan="2"/>
                     </group>
                     <group string="Fecha y Ronda" icon="calendar-check" col="10" colspan="10">
-                        <field name="fecha_ronda" colspan="2"/>
-                        <field name="num_ronda" colspan="2"/>
+                        <field name="fecha_ronda" select="1" colspan="2"/>
+                        <field name="num_ronda" select="1" colspan="2"/>
                     </group>
                     <group string="Periodo" icon="clock" col="10" colspan="10">
                         <field name="periodo" colspan="2"/>
                         <field name="descripcion" colspan="2"/>
                     </group>
                     <group string="Medida" icon="bolt" col="9" colspan="10">
-                        <field name="tipo_oferta" colspan="3"/>
+                        <field name="tipo_oferta" select="1" colspan="3"/>
                         <field name="uni_medida" colspan="3"/>
                         <field string="Medida Total (MWh)" name="medida_total" colspan="3"
                                attrs="{'invisible':[('uni_medida', '!=', 'E')]}"/>
@@ -194,10 +194,10 @@
             <field name="arch" type="xml">
                 <form string="Programa Base de Casación de OMIE">
                     <group string="Unidad de Oferta" icon="file-power" col="4" colspan="4">
-                        <field name="id_unidad" colspan="2"/>
+                        <field name="id_unidad" select="1" colspan="2"/>
                     </group>
                     <group string="Fecha y período" icon="calendar-clock" col="6" >
-                        <field name="fecha" colspan="2"/>
+                        <field name="fecha" select="1" colspan="2"/>
                         <field name="periodo" colspan="2"/>
                         <field name="descripcion" colspan="2"/>
                     </group>
