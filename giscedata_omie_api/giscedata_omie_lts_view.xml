@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <!-- Etapa 11A: seguimiento exclusivamente en modo lectura. -->
+        <menuitem name="Mercado continuo LTS" id="menu_omie_lts" parent="menu_omie" groups="group_giscedata_omie_lts_read" sequence="30"/>
+
+        <record model="ir.ui.view" id="view_omie_lts_order_tree">
+            <field name="name">giscedata.omie.lts.order.tree</field>
+            <field name="model">giscedata.omie.lts.order</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Ordenes LTS" create="false" edit="false" delete="false">
+                    <field name="agent_id"/>
+                    <field name="zone"/>
+                    <field name="contract_id"/>
+                    <field name="omie_order_id"/>
+                    <field name="client_order_id"/>
+                    <field name="side"/>
+                    <field name="omie_status"/>
+                    <field name="remaining_qty"/>
+                    <field name="price"/>
+                    <field name="sync_status"/>
+                </tree>
+            </field>
+        </record>
+        <record model="ir.ui.view" id="view_omie_lts_order_form">
+            <field name="name">giscedata.omie.lts.order.form</field>
+            <field name="model">giscedata.omie.lts.order</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Orden LTS" create="false" edit="false" delete="false">
+                    <group col="4">
+                        <field name="record_key" readonly="1"/>
+                        <field name="sync_status" readonly="1"/>
+                        <field name="app_id" readonly="1"/>
+                        <field name="agent_id" readonly="1"/>
+                        <field name="zone" readonly="1"/>
+                        <field name="contract_id" readonly="1"/>
+                        <field name="omie_order_id" readonly="1"/>
+                        <field name="client_order_id" readonly="1"/>
+                        <field name="omie_order_id_ini" readonly="1"/>
+                        <field name="omie_order_id_orig" readonly="1"/>
+                        <field name="unit" readonly="1"/>
+                        <field name="side" readonly="1"/>
+                        <field name="omie_status" readonly="1"/>
+                        <field name="omie_action" readonly="1"/>
+                        <field name="price" readonly="1"/>
+                        <field name="initial_qty" readonly="1"/>
+                        <field name="remaining_qty" readonly="1"/>
+                        <field name="omie_timestamp" readonly="1"/>
+                        <field name="last_seen_at" readonly="1"/>
+                        <field name="raw_message" readonly="1" colspan="4"/>
+                        <field name="operation_ids" readonly="1" colspan="4"/>
+                    </group>
+                </form>
+            </field>
+        </record>
+        <record model="ir.actions.act_window" id="action_omie_lts_order">
+            <field name="name">Ordenes LTS</field>
+            <field name="res_model">giscedata.omie.lts.order</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+        <menuitem name="Ordenes" id="menu_omie_lts_order"
+                  action="action_omie_lts_order" parent="menu_omie_lts" sequence="10"/>
+
+        <record model="ir.ui.view" id="view_omie_lts_operation_tree">
+            <field name="name">giscedata.omie.lts.operation.tree</field>
+            <field name="model">giscedata.omie.lts.operation</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Operaciones LTS" create="false" edit="false" delete="false">
+                    <field name="operation_id"/>
+                    <field name="agent_id"/>
+                    <field name="zone"/>
+                    <field name="operation_type"/>
+                    <field name="state"/>
+                    <field name="rq_job_id"/>
+                    <field name="updated_utc"/>
+                </tree>
+            </field>
+        </record>
+        <record model="ir.ui.view" id="view_omie_lts_operation_form">
+            <field name="name">giscedata.omie.lts.operation.form</field>
+            <field name="model">giscedata.omie.lts.operation</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Operacion LTS" create="false" edit="false" delete="false">
+                    <group col="4">
+                        <field name="operation_id" readonly="1"/>
+                        <field name="state" readonly="1"/>
+                        <field name="app_id" readonly="1"/>
+                        <field name="agent_id" readonly="1"/>
+                        <field name="zone" readonly="1"/>
+                        <field name="order_id" readonly="1"/>
+                        <field name="operation_type" readonly="1"/>
+                        <field name="rq_job_id" readonly="1"/>
+                        <field name="requested_by" readonly="1"/>
+                        <field name="client_message_id" readonly="1"/>
+                        <field name="created_utc" readonly="1"/>
+                        <field name="updated_utc" readonly="1"/>
+                        <field name="request_payload" readonly="1" colspan="4"/>
+                        <field name="ack_payload" readonly="1" colspan="4"/>
+                        <field name="evidence" readonly="1" colspan="4"/>
+                        <field name="resolution_note" readonly="1" colspan="4"/>
+                    </group>
+                </form>
+            </field>
+        </record>
+        <record model="ir.actions.act_window" id="action_omie_lts_operation">
+            <field name="name">Operaciones LTS</field>
+            <field name="res_model">giscedata.omie.lts.operation</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+        <menuitem name="Operaciones" id="menu_omie_lts_operation"
+                  action="action_omie_lts_operation" parent="menu_omie_lts" sequence="20"/>
+
+        <record model="ir.ui.view" id="view_omie_lts_trade_tree">
+            <field name="name">giscedata.omie.lts.trade.tree</field>
+            <field name="model">giscedata.omie.lts.trade</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Transacciones LTS" create="false" edit="false" delete="false">
+                    <field name="omie_trade_id"/>
+                    <field name="agent_id"/>
+                    <field name="contract_id"/>
+                    <field name="buy_order_id"/>
+                    <field name="sell_order_id"/>
+                    <field name="qty"/>
+                    <field name="price"/>
+                    <field name="omie_timestamp"/>
+                </tree>
+            </field>
+        </record>
+        <record model="ir.ui.view" id="view_omie_lts_trade_form">
+            <field name="name">giscedata.omie.lts.trade.form</field>
+            <field name="model">giscedata.omie.lts.trade</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Transaccion LTS" create="false" edit="false" delete="false">
+                    <group col="4">
+                        <field name="omie_trade_id" readonly="1"/>
+                        <field name="app_id" readonly="1"/>
+                        <field name="agent_id" readonly="1"/>
+                        <field name="zone" readonly="1"/>
+                        <field name="contract_id" readonly="1"/>
+                        <field name="buy_order_id" readonly="1"/>
+                        <field name="sell_order_id" readonly="1"/>
+                        <field name="qty" readonly="1"/>
+                        <field name="price" readonly="1"/>
+                        <field name="omie_timestamp" readonly="1"/>
+                        <field name="last_seen_at" readonly="1"/>
+                        <field name="raw_message" readonly="1" colspan="4"/>
+                    </group>
+                </form>
+            </field>
+        </record>
+        <record model="ir.actions.act_window" id="action_omie_lts_trade">
+            <field name="name">Transacciones LTS</field>
+            <field name="res_model">giscedata.omie.lts.trade</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+        <menuitem name="Transacciones" id="menu_omie_lts_trade"
+                  action="action_omie_lts_trade" parent="menu_omie_lts" sequence="30"/>
+    </data>
+</openerp>
