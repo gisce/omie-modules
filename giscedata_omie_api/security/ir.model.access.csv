@@ -35,3 +35,6 @@
 "access_wizard_consulta_omie_r","wizard.consulta.omie","model_wizard_consulta_omie","group_giscedata_omie_oferta_r",1,0,0,0
 "access_wizard_consulta_omie_w","wizard.consulta.omie","model_wizard_consulta_omie","group_giscedata_omie_oferta_w",1,1,1,0
 "access_wizard_consulta_omie_u","wizard.consulta.omie","model_wizard_consulta_omie","group_giscedata_omie_oferta_u",1,1,1,1
+"access_giscedata_omie_lts_order_read","giscedata.omie.lts.order","model_giscedata_omie_lts_order","group_giscedata_omie_lts_read",1,0,0,0
+"access_giscedata_omie_lts_operation_read","giscedata.omie.lts.operation","model_giscedata_omie_lts_operation","group_giscedata_omie_lts_read",1,0,0,0
+"access_giscedata_omie_lts_trade_read","giscedata.omie.lts.trade","model_giscedata_omie_lts_trade","group_giscedata_omie_lts_read",1,0,0,0

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <!-- Acceso opt-in: las posiciones de mercado son confidenciales. -->
+        <record model="res.groups" id="group_giscedata_omie_lts_read">
+            <field name="name">GISCEDATA OMIE LTS / Lectura</field>
+        </record>
+    </data>
+</openerp>
