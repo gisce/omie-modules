@@ -331,8 +331,8 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
     _columns = {
         'consulta': fields.integer('Código de consulta', required=True, readonly=True, select=1),
         'usuario_id': fields.many2one('res.users', 'Usuario solicitante', readonly=True),
-        'fecha_intento': fields.datetime('Reserva / intento UTC', required=True, readonly=True),
-        'fecha_fin': fields.datetime('Fin local UTC', readonly=True),
+        'fecha_intento': fields.datetime('Reserva / intento UTC', required=True, readonly=True, timezone='UTC'),
+        'fecha_fin': fields.datetime('Fin local UTC', readonly=True, timezone='UTC'),
         'limite_ms': fields.integer('Límite aplicado (ms)', readonly=True),
         'configurada': fields.boolean('Existe configuración 8101', readonly=True),
         'estado': fields.selection([

@@ -122,7 +122,7 @@ class GiscedataOmieSiomMinimumTime(osv.osv):
         'tiempo_agente_ms': fields.integer('Tiempo agente (ms)', required=True, readonly=True),
         'tiempo_certificado_ms': fields.integer('Tiempo certificado (ms)', required=True, readonly=True),
         'tipo_acceso': fields.char('Tipo de acceso', size=64, required=True, readonly=True),
-        'fecha_actualizacion': fields.datetime('Ultima observacion UTC', readonly=True)
+        'fecha_actualizacion': fields.datetime('Ultima observacion UTC', readonly=True, timezone='UTC')
     }
 
     _sql_constraints = [
@@ -143,8 +143,8 @@ class GiscedataOmieSiomMinimumTimeSync(osv.osv):
         'estado': fields.selection([('con_datos', 'Datos recibidos'), ('vacia', 'Respuesta vacía')],
                                   'Resultado de la última consulta', required=True,
                                    readonly=True),
-        'fecha_ultimo_intento': fields.datetime('Último intento UTC', readonly=True),
-        'fecha_ultimo_exito': fields.datetime('Última respuesta válida UTC', readonly=True),
+        'fecha_ultimo_intento': fields.datetime('Último intento UTC', readonly=True, timezone='UTC'),
+        'fecha_ultimo_exito': fields.datetime('Última respuesta válida UTC', readonly=True, timezone='UTC'),
         'total_filas': fields.integer('Filas recibidas', readonly=True)
     }
 

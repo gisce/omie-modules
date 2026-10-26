@@ -42,6 +42,7 @@ class ServicioStore(object):
         self.commits = 0
         self.closed = 0
         self.queries = []
+        self.offers = {}  # Tuplas visibles despues de commit de ERP
 
     def cursor(self):
         return ServicioCursor(self)
@@ -55,6 +56,7 @@ class ServicioCursor(object):
         self.rowcount = 0
         self.pending_insert = None
         self.pending_updates = []
+        self.pending_response = None
 
     def execute(self, sql, params=()):
         clean = ' '.join(sql.lower().split())
@@ -64,6 +66,25 @@ class ServicioCursor(object):
         if 'pg_advisory_xact_lock' in clean:
             self.db.lock.acquire()
             self.locked = True
+        elif clean.startswith('select max(version_enviada), max(num_oferta_enviado)'):
+            matches = [r for r in self.db.rows
+                       if r['servicio'] == params[0] and
+                       r.get('id_remitente') == params[1] and
+                       r.get('fecha_sesion') == params[2] and
+                       r.get('id_unidad') == params[3] and
+                       r.get('num_sesion') == params[4] and
+                       r['estado'] not in ('preparada', 'cancelada')]
+            versions = [r['version_enviada'] for r in matches if r.get('version_enviada') is not None]
+            nums = [r['num_oferta_enviado'] for r in matches if r.get('num_oferta_enviado') is not None]
+            self.result = [(max(versions) if versions else None,
+                            max(nums) if nums else None)]
+        elif clean.startswith('select id, oferta_id, version_enviada, id_respuesta'):
+            self.result = [(r['id'], r['oferta_id'], r.get('version_enviada'),
+                            r.get('id_respuesta')) for r in self.db.rows
+                           if r['estado'] == 'respondida_pendiente']
+        elif clean.startswith('select ver_mensaje, id_mensaje_respuesta, state'):
+            self.result = ([self.db.offers[params[0]]]
+                           if params[0] in self.db.offers else [])
         elif clean.startswith('select id, servicio, estado'):
             changes = {r['id']: state for r, state, detail in self.pending_updates}
             pending = [(r['id'], r['servicio'], changes.get(r['id'], r['estado']))
@@ -86,7 +107,16 @@ class ServicioCursor(object):
             self.pending_insert = {
                 'id': new_id, 'servicio': params[0], 'oferta_id': params[1],
                 'usuario_id': params[2], 'fecha_intento': datetime.utcnow(),
-                'estado': params[3], 'detalle': params[4], 'fecha_fin': None}
+                'estado': params[3], 'detalle': params[4], 'fecha_fin': None,
+                'id_mensaje_enviado': params[5] if len(params) > 5 else None,
+                'version_enviada': params[6] if len(params) > 6 else None,
+                'num_oferta_enviado': params[7] if len(params) > 7 else None,
+                'id_remitente': params[8] if len(params) > 8 else None,
+                'fecha_sesion': params[9] if len(params) > 9 else None,
+                'id_unidad': params[10] if len(params) > 10 else None,
+                'num_sesion': params[11] if len(params) > 11 else None,
+                'respuesta_json': None, 'id_respuesta': None,
+                'codigo_respuesta': None}
             self.result = [(new_id,)]
         elif clean.startswith('update giscedata_omie_siom_service_execution'):
             if "estado='cancelada'" in clean:
@@ -98,6 +128,20 @@ class ServicioCursor(object):
                     self.pending_updates.append((row, 'cancelada',
                                                  'Preparacion caducada: anulada antes del envio SOAP'))
                 self.rowcount = len(rows)
+            elif "set estado='integrada'" in clean:
+                row = next((r for r in self.db.rows if r['id'] == params[0] and
+                            r['estado'] == 'respondida_pendiente'), None)
+                if row:
+                    self.pending_updates.append((row, 'integrada', row['detalle']))
+                    self.rowcount = 1
+            elif "set estado='respondida_pendiente'" in clean:
+                row = next((r for r in self.db.rows if r['id'] == params[3] and
+                            r['estado'] == 'enviando'), None)
+                if row:
+                    self.pending_updates.append((row, 'respondida_pendiente',
+                                                 'SOAP recibido; integracion ERP pendiente de commit'))
+                    self.pending_response = (row, params[0], params[1], params[2])
+                    self.rowcount = 1
             elif "set estado='enviando'" in clean:
                 row = next((r for r in self.db.rows if r['id'] == params[0] and
                             r['estado'] == 'preparada'), None)
@@ -126,6 +170,11 @@ class ServicioCursor(object):
             return None
         return self.result.pop(0)
 
+    def fetchall(self):
+        result = self.result
+        self.result = []
+        return result
+
     def commit(self):
         if self.pending_insert:
             self.db.rows.append(self.pending_insert)
@@ -133,6 +182,11 @@ class ServicioCursor(object):
             row['estado'], row['detalle'] = state, detail
             if state not in ('enviando',):
                 row['fecha_fin'] = datetime.utcnow()
+        if self.pending_response:
+            row, payload, response_id, code = self.pending_response
+            row.update(respuesta_json=payload, id_respuesta=response_id,
+                       codigo_respuesta=code)
+        self.pending_response = None
         self.pending_insert = None
         self.pending_updates = []
         self.db.commits += 1
@@ -144,6 +198,7 @@ class ServicioCursor(object):
             self.locked = False
 
     def rollback(self):
+        self.pending_response = None
         self.pending_insert = None
         self.pending_updates = []
         self._unlock()
@@ -400,6 +455,129 @@ class ServiceTests(unittest.TestCase):
             codigo = f.read()
         self.assertIn("SET estado='incierta'", codigo)
         self.assertIn("WHERE estado='reservada'", codigo)
+
+    def test_10d2_respuesta_durable_y_version_no_espera_commit_erp(self):
+        self.model._datos_respuesta = lambda respuesta: (
+            '{"Respuesta":"OK"}', 'RESP-123', '0')
+        result = self.model.ejecutar_servicio(
+            self.cr, 7, 'ServicioAltaOfertasMD', lambda: {'correctas': 1},
+            oferta_id=100, metadatos={
+                'id_mensaje': 'REQ-123', 'version': 7, 'num_oferta': None})
+        self.assertEqual(result, {'correctas': 1})
+        fila = self.db.rows[0]
+        self.assertEqual(fila['estado'], 'respondida_pendiente')
+        self.assertEqual(fila['id_mensaje_enviado'], 'REQ-123')
+        self.assertEqual(fila['version_enviada'], 7)
+        self.assertEqual(fila['id_respuesta'], 'RESP-123')
+        self.assertEqual(fila['codigo_respuesta'], '0')
+        self.assertEqual(fila['respuesta_json'], '{"Respuesta":"OK"}')
+        self.assertFalse(self.cr.called)
+
+    def test_10d2_rollback_de_negocio_no_libera_soap_respondido(self):
+        self.model._datos_respuesta = lambda r: ('{}', 'RESP-123', '0')
+        self.model.ejecutar_servicio(
+            self.cr, 7, 'ServicioAltaOfertasMD', lambda: {'ok': True},
+            oferta_id=100, metadatos={'id_mensaje': 'REQ', 'version': 7})
+        # No consta integracion COMMIT de la oferta => bloquear siguientes.
+        with self.assertRaises(self.module.EnvioOMIEPendiente):
+            self.model._reservar(self.cr, 8, 'ServicioAltaOfertasMI', oferta_id=101)
+        self.assertEqual(self.db.rows[0]['estado'], 'respondida_pendiente')
+
+    def test_10d2_integracion_confirmada_levanta_pendiente(self):
+        self.model._datos_respuesta = lambda r: ('{}', 'RESP-123', '0')
+        self.model.ejecutar_servicio(
+            self.cr, 7, 'ServicioAltaOfertasMD', lambda: {'ok': True},
+            oferta_id=100, metadatos={'id_mensaje': 'REQ', 'version': 7})
+        self.db.offers[100] = (7, 'RESP-123', 'enviada')
+        nueva = self.model._reservar(self.cr, 8, 'ServicioAltaOfertasMI', oferta_id=101)
+        self.assertEqual(nueva, 2)
+        self.assertEqual(self.db.rows[0]['estado'], 'integrada')
+        self.assertEqual(self.db.rows[1]['estado'], 'preparada')
+
+    def test_10d2_version_o_respuesta_distintas_no_son_commit_valido(self):
+        self.model._datos_respuesta = lambda r: ('{}', 'RESP-123', '0')
+        self.model.ejecutar_servicio(
+            self.cr, 7, 'ServicioAltaOfertasMD', lambda: {'ok': True},
+            oferta_id=100, metadatos={'id_mensaje': 'REQ', 'version': 7})
+        for oferta_confirmada in ((6, 'RESP-123', 'enviada'),
+                                  (7, 'RESP-OLD', 'enviada'),
+                                  (7, 'RESP-123', 'no_enviada')):
+            self.db.offers[100] = oferta_confirmada
+            with self.assertRaises(self.module.EnvioOMIEPendiente):
+                self.model._reservar(self.cr, 8, 'ServicioAltaOfertasMI', oferta_id=101)
+        self.assertEqual(self.db.rows[0]['estado'], 'respondida_pendiente')
+
+    def test_10d2_segundo_envio_en_misma_transaccion_puede_continuar(self):
+        self.model._datos_respuesta = lambda r: ('{}', 'RESP-123', '0')
+        self.model.ejecutar_servicio(
+            self.cr, 7, 'ServicioAltaOfertasMD', lambda: {'ok': True},
+            oferta_id=100, metadatos={'id_mensaje': 'REQ', 'version': 7})
+
+        class CursorLocal(object):
+            def __init__(self):
+                self.reads = []
+            def execute(self, sql, params):
+                self.reads.append((sql, params))
+            def fetchone(self):
+                return (7, 'RESP-123', 'enviada')
+        negocio = CursorLocal()
+        nueva = self.model._reservar(
+            negocio, 7, 'ServicioAltaOfertasMI', oferta_id=101,
+            permitir_pendientes_propias=True)
+        self.assertEqual(nueva, 2)
+        # No equivale a COMMIT: registro sigue pendiente, el siguiente
+        # automatismo ajeno debera esperar hasta ver la integracion real.
+        self.assertEqual(self.db.rows[0]['estado'], 'respondida_pendiente')
+        self.assertEqual(len(negocio.reads), 1)
+
+    def test_10d2_error_guardando_respuesta_no_libera_envio(self):
+        def fallo(_):
+            raise ValueError('Respuesta corrupta')
+        self.model._datos_respuesta = fallo
+        with self.assertRaises(ValueError):
+            self.model.ejecutar_servicio(
+                self.cr, 7, 'ServicioAltaOfertasMD', lambda: {'ok': True},
+                oferta_id=100, metadatos={'id_mensaje': 'REQ', 'version': 7})
+        self.assertEqual(self.db.rows[0]['estado'], 'incierta')
+        with self.assertRaises(self.module.EnvioOMIEPendiente):
+            self.model._reservar(self.cr, 7, 'ServicioAltaOfertasMI', oferta_id=101)
+
+    def test_10d2_separacion_bloqueos_y_actualizacion_version_modelo(self):
+        with open(os.path.join(APP, 'giscedata_omie_oferta.py')) as f:
+            codigo = f.read()
+        self.assertIn('giscedata_omie_api.siom.versiones', codigo)
+        self.assertIn("'ver_mensaje': oferta_dicc['VerMensaje']", codigo)
+        self.assertLess(codigo.index('pg_advisory_xact_lock'),
+                        codigo.index('for oferta_id in ids:',
+                                     codigo.index('def enviar_oferta')))
+        with open(os.path.join(APP, 'giscedata_omie_siom_service_execution.py')) as f:
+            servicios = f.read()
+        self.assertIn('giscedata_omie_api.siom.ofertas', servicios)
+        self.assertIn('respondida_pendiente', servicios)
+
+    def test_10d2_maximos_durables_visibles_sin_commit_del_negocio(self):
+        self.model._datos_respuesta = lambda r: ('{}', 'RESP-12', '0')
+        self.model.ejecutar_servicio(
+            self.cr, 7, 'ServicioAltaOfertasMI', lambda: {'ok': True},
+            oferta_id=12, metadatos={
+                'id_mensaje': 'REQ', 'version': 5, 'num_oferta': 8,
+                'id_remitente': 'AGENTE', 'fecha_sesion': '2026-10-27',
+                'id_unidad': 'UNIDAD', 'num_sesion': '1'})
+        self.assertEqual(self.model.ultimos_identificadores(
+            self.cr, 'MI', 'AGENTE', '2026-10-27', 'UNIDAD', '1'), (5, 8))
+        self.assertEqual(self.model.ultimos_identificadores(
+            self.cr, 'MI', 'AGENTE', '2026-10-27', 'OTRA', '1'), (None, None))
+        # Se incluye respuesta pendiente: el commit del negocio aun no existe.
+        self.assertEqual(self.db.rows[0]['estado'], 'respondida_pendiente')
+        self.assertFalse(self.cr.called)
+
+    def test_10d2_migracion_add_campos_y_no_reescribe_legacy(self):
+        path = os.path.join(APP, 'migrations', '5.0.26.12',
+                            'post-0007_siom_respuestas_versiones.py')
+        with open(path) as f:
+            codigo = f.read()
+        self.assertIn("mh.init_model(model_name='giscedata.omie.siom.service.execution')", codigo)
+        self.assertNotIn('DELETE FROM', codigo)
 
     def test_servicios_y_ofertas_integrados_en_codigo_erp(self):
         with open(os.path.join(APP, 'giscedata_omie_oferta.py')) as f:

@@ -11,6 +11,8 @@ llegado a OMIE. Nunca se reintentan automaticamente las ofertas.
 """
 from __future__ import absolute_import
 
+import json
+
 from osv import osv, fields
 from tools.translate import _
 
@@ -81,7 +83,95 @@ class GiscedataOmieSiomServiceExecution(osv.osv):
         finally:
             dbcr.close()
 
-    def _reservar(self, cr, uid, servicio, oferta_id=None):
+    def ultimos_identificadores(self, cr, tipo_mercado, agente,
+                               fecha_sesion, unidad, num_sesion=None):
+        """Mayor version y NumOferta de la auditoria DURABLE, lectura fresca.
+
+        Debe llamarse manteniendo el advisory lock del NEGOCIO. Usar un
+        cursor independiente evita snapshots viejos del cursor principal
+        en instalaciones que no utilicen aislamiento READ COMMITTED.
+        Los registros preparados/cancelados nunca han iniciado SOAP.
+        """
+        if tipo_mercado not in ('MD', 'MI'):
+            raise ValueError('Mercado no soportado')
+        dbcr = self._nueva_conexion(cr)
+        try:
+            dbcr.execute('''
+                SELECT MAX(version_enviada), MAX(num_oferta_enviado)
+                  FROM giscedata_omie_siom_service_execution
+                 WHERE servicio=%s
+                   AND id_remitente=%s AND fecha_sesion=%s
+                   AND id_unidad=%s AND num_sesion IS NOT DISTINCT FROM %s
+                   AND estado NOT IN ('preparada', 'cancelada')
+            ''', (
+                'ServicioAltaOfertasMD' if tipo_mercado == 'MD'
+                else 'ServicioAltaOfertasMI',
+                agente, fecha_sesion, unidad, num_sesion))
+            fila = dbcr.fetchone() or (None, None)
+            dbcr.commit()
+            return fila
+        except BaseException:
+            dbcr.rollback()
+            raise
+        finally:
+            dbcr.close()
+
+    def _resolver_respuestas_pendientes(self, cr, dbcr, permitir_local=False):
+        """Comprueba la integracion SOLO con evidencia persistida en el ERP.
+
+        Una respuesta SOAP no demuestra commit del cursor de negocio. No se
+        libera una respuesta pendiente si la oferta no tiene el ID de respuesta
+        y la version enviada. La inspeccion local solo permite continuar a la
+        MISMA transaccion que mantiene el lock de versiones; no confirma nada.
+        """
+        dbcr.execute('''
+            SELECT id, oferta_id, version_enviada, id_respuesta
+              FROM giscedata_omie_siom_service_execution
+             WHERE servicio IN ('ServicioAltaOfertasMD', 'ServicioAltaOfertasMI')
+               AND estado='respondida_pendiente'
+             ORDER BY id ASC
+        ''')
+        pendientes = dbcr.fetchall()
+        for execution_id, oferta_id, version, id_respuesta in pendientes:
+            if not id_respuesta or version is None or not oferta_id:
+                raise EnvioOMIEPendiente(
+                    'Respuesta SIOM #%s sin identificadores suficientes para '
+                    'comprobar la integracion ERP.' % execution_id)
+            consulta = '''
+                SELECT ver_mensaje, id_mensaje_respuesta, state
+                  FROM giscedata_omie_oferta WHERE id=%s
+            '''
+            dbcr.execute(consulta, (oferta_id,))
+            confirmada = self._oferta_coincide(dbcr.fetchone(), version, id_respuesta)
+            if confirmada:
+                dbcr.execute('''
+                    UPDATE giscedata_omie_siom_service_execution
+                       SET estado='integrada'
+                     WHERE id=%s AND estado='respondida_pendiente'
+                ''', (execution_id,))
+                if dbcr.rowcount != 1:
+                    raise EnvioOMIEPendiente('La integracion SIOM ha cambiado')
+                continue
+            if permitir_local:
+                # Solo se permite dentro del mismo cursor de negocio (tras
+                # adquirir el advisory lock de versiones en enviar_oferta).
+                cr.execute(consulta, (oferta_id,))
+                if self._oferta_coincide(cr.fetchone(), version, id_respuesta):
+                    continue
+            raise EnvioOMIEPendiente(
+                'La respuesta SIOM #%s no esta confirmada en el ERP. '
+                'No se envia una nueva oferta hasta conciliarla.' % execution_id)
+
+    @staticmethod
+    def _oferta_coincide(fila, version, id_respuesta):
+        if not fila or fila[0] is None or not fila[1]:
+            return False
+        return (int(fila[0]) == int(version) and
+                str(fila[1]) == str(id_respuesta) and
+                fila[2] in ('enviada', 'enviada_error'))
+
+    def _reservar(self, cr, uid, servicio, oferta_id=None, metadatos=None,
+                 permitir_pendientes_propias=False):
         if not servicio or len(servicio) > 100:
             raise ValueError('Nombre de servicio SIOM invalido')
         if oferta_id is not None and servicio not in SERVICIOS_OFERTAS:
@@ -93,6 +183,8 @@ class GiscedataOmieSiomServiceExecution(osv.osv):
             if servicio in SERVICIOS_OFERTAS:
                 self._bloquear_carril_ofertas(dbcr)
                 self._cancelar_preparadas_caducadas(dbcr)
+                self._resolver_respuestas_pendientes(
+                    cr, dbcr, permitir_local=permitir_pendientes_propias)
                 dbcr.execute('''
                     SELECT id, servicio, estado
                       FROM giscedata_omie_siom_service_execution
@@ -108,15 +200,28 @@ class GiscedataOmieSiomServiceExecution(osv.osv):
             # Los servicios no-oferta siguen registrandose, sin carril MD/MI.
             estado = ('preparada' if servicio in SERVICIOS_OFERTAS
                       else 'enviando')
-            dbcr.execute('''
-                INSERT INTO giscedata_omie_siom_service_execution
-                    (servicio, oferta_id, usuario_id, fecha_intento, estado, detalle)
-                VALUES (%s, %s, %s, clock_timestamp() AT TIME ZONE 'UTC',
-                        %s, %s)
-                RETURNING id
-            ''', (servicio, oferta_id, uid, estado,
-                  'Reserva anterior a SOAP' if servicio in SERVICIOS_OFERTAS
-                  else 'Servicio SIOM iniciado'))
+            detalle = ('Reserva anterior a SOAP' if servicio in SERVICIOS_OFERTAS
+                       else 'Servicio SIOM iniciado')
+            if metadatos is not None:
+                dbcr.execute('''
+                    INSERT INTO giscedata_omie_siom_service_execution
+                        (servicio, oferta_id, usuario_id, fecha_intento, estado,
+                         detalle, id_mensaje_enviado, version_enviada, num_oferta_enviado,
+                         id_remitente, fecha_sesion, id_unidad, num_sesion)
+                    VALUES (%s, %s, %s, clock_timestamp() AT TIME ZONE 'UTC',
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+                ''', (servicio, oferta_id, uid, estado, detalle,
+                      metadatos.get('id_mensaje'), metadatos.get('version'),
+                      metadatos.get('num_oferta'), metadatos.get('id_remitente'),
+                      metadatos.get('fecha_sesion'), metadatos.get('id_unidad'),
+                      metadatos.get('num_sesion')))
+            else:
+                dbcr.execute('''
+                    INSERT INTO giscedata_omie_siom_service_execution
+                        (servicio, oferta_id, usuario_id, fecha_intento, estado, detalle)
+                    VALUES (%s, %s, %s, clock_timestamp() AT TIME ZONE 'UTC',
+                            %s, %s) RETURNING id
+                ''', (servicio, oferta_id, uid, estado, detalle))
             execution_id = dbcr.fetchone()[0]
             dbcr.commit()
             return execution_id
@@ -172,7 +277,56 @@ class GiscedataOmieSiomServiceExecution(osv.osv):
         finally:
             dbcr.close()
 
-    def ejecutar_servicio(self, cr, uid, servicio, llamada, oferta_id=None):
+    @staticmethod
+    def _valor_campo(item):
+        if isinstance(item, dict):
+            return item.get('v')
+        return item
+
+    def _datos_respuesta(self, respuesta):
+        """Respuesta Zeep serializada, sin perder el cuerpo del resultado OMIE."""
+        from zeep import helpers
+        obj = helpers.serialize_object(respuesta)
+        payload = json.dumps(obj, ensure_ascii=True, default=str)
+        if not isinstance(obj, dict):
+            return payload, None, None
+        respuesta_id = self._valor_campo(obj.get('IdMensaje'))
+        respuesta_general = obj.get('Respuesta') or []
+        if isinstance(respuesta_general, dict):
+            respuesta_general = [respuesta_general]
+        codigo = None
+        if respuesta_general and isinstance(respuesta_general[0], dict):
+            codigo = self._valor_campo(respuesta_general[0].get('CodigoRespuesta'))
+        return payload, respuesta_id, codigo
+
+    def _finalizar_con_respuesta(self, cr, execution_id, respuesta):
+        """Confirma JSON y metadatos antes de dejar salir el SOAP del controlador.
+
+        La integracion de negocio NO se marca como confirmada aqui, pues el
+        cursor principal todavia puede hacer rollback posteriormente.
+        """
+        contenido, id_respuesta, codigo = self._datos_respuesta(respuesta)
+        dbcr = self._nueva_conexion(cr)
+        try:
+            dbcr.execute('''
+                UPDATE giscedata_omie_siom_service_execution
+                   SET estado='respondida_pendiente',
+                       respuesta_json=%s, id_respuesta=%s, codigo_respuesta=%s,
+                       detalle='SOAP recibido; integracion ERP pendiente de commit',
+                       fecha_fin=clock_timestamp() AT TIME ZONE 'UTC'
+                 WHERE id=%s AND estado='enviando'
+            ''', (contenido, id_respuesta, codigo, execution_id))
+            if dbcr.rowcount != 1:
+                raise ValueError('Estado de servicio no enviando: %s' % execution_id)
+            dbcr.commit()
+        except BaseException:
+            dbcr.rollback()
+            raise
+        finally:
+            dbcr.close()
+
+    def ejecutar_servicio(self, cr, uid, servicio, llamada, oferta_id=None,
+                          metadatos=None, permitir_pendientes_propias=False):
         """Registra el SOAP sin alterar la semantica sincrona del ERP.
 
         Respuesta SOAP libera el carril; la aceptacion funcional es distinta.
@@ -181,7 +335,9 @@ class GiscedataOmieSiomServiceExecution(osv.osv):
         """
         if not callable(llamada):
             raise ValueError('llamada debe ser callable')
-        execution_id = self._reservar(cr, uid, servicio, oferta_id=oferta_id)
+        execution_id = self._reservar(
+            cr, uid, servicio, oferta_id=oferta_id, metadatos=metadatos,
+            permitir_pendientes_propias=permitir_pendientes_propias)
         if servicio in SERVICIOS_OFERTAS:
             self._iniciar_envio(cr, execution_id)
         try:
@@ -194,8 +350,21 @@ class GiscedataOmieSiomServiceExecution(osv.osv):
                 # Conservar la excepcion original. 'enviando' sigue bloqueando.
                 pass
             raise
-        self._finalizar(cr, execution_id, 'respondida',
-                       'Respuesta SOAP recibida; validar resultado funcional')
+        if servicio in SERVICIOS_OFERTAS and metadatos is not None:
+            # Si falla parseo/persistencia NO liberar el carril: puede haberse
+            # procesado en OMIE y no hay evidencia durable de la respuesta.
+            try:
+                self._finalizar_con_respuesta(cr, execution_id, respuesta)
+            except BaseException:
+                try:
+                    self._finalizar(cr, execution_id, 'incierta',
+                                   'SOAP recibido; fallo al persistir respuesta')
+                except Exception:
+                    pass
+                raise
+        else:
+            self._finalizar(cr, execution_id, 'respondida',
+                           'Respuesta SOAP recibida; validar resultado funcional')
         return respuesta
 
     def conciliar_envio(self, cr, uid, execution_id, justificacion,
@@ -225,7 +394,7 @@ class GiscedataOmieSiomServiceExecution(osv.osv):
                  FOR UPDATE
             ''', (CONCILIACION_ANTIGUEDAD_SEGUNDOS, execution_id))
             anterior = dbcr.fetchone()
-            if not anterior or anterior[0] not in ('incierta', 'enviando', 'reservada'):
+            if not anterior or anterior[0] not in ('incierta', 'enviando', 'reservada', 'respondida_pendiente'):
                 raise ValueError('No existe un envio pendiente conciliable con ese id')
             if anterior[0] != 'incierta':
                 if not proceso_terminado:
@@ -256,10 +425,22 @@ class GiscedataOmieSiomServiceExecution(osv.osv):
         'usuario_id': fields.many2one('res.users', 'Usuario', readonly=True),
         'fecha_intento': fields.datetime('Peticion UTC', required=True, readonly=True),
         'fecha_fin': fields.datetime('Finalizacion UTC', readonly=True),
+        'id_mensaje_enviado': fields.char('ID mensaje enviado', size=64, readonly=True),
+        'version_enviada': fields.integer('Version enviada', readonly=True),
+        'num_oferta_enviado': fields.integer('Numero oferta MI enviado', readonly=True),
+        'id_remitente': fields.char('Agente ofertante', size=16, readonly=True),
+        'fecha_sesion': fields.char('Fecha sesion', size=10, readonly=True),
+        'id_unidad': fields.char('Unidad', size=16, readonly=True),
+        'num_sesion': fields.char('Sesion IDA', size=8, readonly=True),
+        'id_respuesta': fields.char('ID mensaje respuesta', size=64, readonly=True),
+        'codigo_respuesta': fields.char('Codigo respuesta OMIE', size=64, readonly=True),
+        'respuesta_json': fields.text('Respuesta SOAP serializada', readonly=True),
         'estado': fields.selection([
             ('preparada', 'Preparada (SOAP aun no iniciado)'),
             ('enviando', 'Comunicacion SOAP iniciada o incierta'),
-            ('respondida', 'SOAP respondido'),
+            ('respondida', 'SOAP respondido (legacy)'),
+            ('respondida_pendiente', 'SOAP recibido; commit ERP pendiente'),
+            ('integrada', 'SOAP integrado y comprobado en ERP'),
             ('incierta', 'Resultado incierto: necesita conciliacion'),
             ('cancelada', 'Preparacion cancelada sin SOAP'),
             ('reconciliada', 'Conciliacion manual documentada'),

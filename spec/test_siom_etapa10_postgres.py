@@ -65,7 +65,16 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
         cr.execute('''CREATE TABLE %s.giscedata_omie_siom_service_execution
                      (id serial primary key, servicio varchar(100), oferta_id integer,
                       usuario_id integer, fecha_intento timestamp, fecha_fin timestamp,
-                      estado varchar(64), detalle varchar(256))''' % cls.schema)
+                      estado varchar(64), detalle varchar(256),
+                      id_mensaje_enviado varchar(64), version_enviada integer,
+                      num_oferta_enviado integer,
+                      id_remitente varchar(16), fecha_sesion varchar(10),
+                      id_unidad varchar(16), num_sesion varchar(8),
+                      id_respuesta varchar(64),
+                      codigo_respuesta varchar(64), respuesta_json text)''' % cls.schema)
+        cr.execute('''CREATE TABLE %s.giscedata_omie_oferta
+                    (id integer primary key, ver_mensaje integer,
+                     id_mensaje_respuesta varchar(64), state varchar(64))''' % cls.schema)
         cr.close()
         cls.backup = {}
         for k in ('osv', 'giscedata_omie_api',
@@ -112,6 +121,7 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
         conn.execute('TRUNCATE TABLE %s.giscedata_omie_siom_query_execution RESTART IDENTITY' % self.schema)
         conn.execute('TRUNCATE TABLE %s.giscedata_omie_siom_service_execution RESTART IDENTITY' % self.schema)
         conn.execute('TRUNCATE TABLE %s.giscedata_omie_siom_minimum_time' % self.schema)
+        conn.execute('TRUNCATE TABLE %s.giscedata_omie_oferta' % self.schema)
         conn.close()
 
     def test_consulta_reserva_confirma_independientemente(self):
@@ -251,6 +261,76 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
         cur.close()
 
 
+    def test_10d2_lock_versiones_vive_hasta_commit_erp(self):
+        a = PgCursor(psycopg2.connect(
+            DSN, options='-c search_path=%s' % self.schema))
+        b = PgCursor(psycopg2.connect(
+            DSN, options='-c search_path=%s' % self.schema))
+        try:
+            a.execute('SELECT pg_advisory_xact_lock(hashtext(%s), %s)',
+                      ('giscedata_omie_api.siom.versiones', 2))
+            a.fetchone()
+            b.execute('SELECT pg_try_advisory_xact_lock(hashtext(%s), %s)',
+                      ('giscedata_omie_api.siom.versiones', 2))
+            self.assertFalse(b.fetchone()[0])
+            # El bloqueo no depende del lock breve del carril SOAP.
+            a.commit()
+            b.execute('SELECT pg_try_advisory_xact_lock(hashtext(%s), %s)',
+                      ('giscedata_omie_api.siom.versiones', 2))
+            self.assertTrue(b.fetchone()[0])
+            b.rollback()
+        finally:
+            a.close()
+            b.close()
+
+    def test_10d2_respuesta_sobrevive_rollback_y_se_comprueba_commit_real(self):
+        # Simula un negocio que envia SOAP y pierde sus writes por rollback.
+        original = self.ofertas._datos_respuesta
+        self.ofertas._datos_respuesta = lambda _: ('{"ok":true}', 'RESP100', '0')
+        negocio = PgCursor(psycopg2.connect(
+            DSN, options='-c search_path=%s' % self.schema))
+        segundo = PgCursor(psycopg2.connect(
+            DSN, options='-c search_path=%s' % self.schema))
+        try:
+            negocio.execute('SELECT pg_advisory_xact_lock(hashtext(%s), %s)',
+                            ('giscedata_omie_api.siom.versiones', 2))
+            negocio.fetchone()
+            self.ofertas.ejecutar_servicio(
+                negocio, 7, 'ServicioAltaOfertasMD', lambda: {'ok': True},
+                oferta_id=100, metadatos={
+                    'id_mensaje': 'REQ100', 'version': 3,
+                    'id_remitente': 'AGENTE', 'fecha_sesion': '2026-10-27',
+                    'id_unidad': 'UNIDAD', 'num_sesion': None})
+            negocio.rollback()
+            self.assertEqual(self.ofertas.ultimos_identificadores(
+                segundo, 'MD', 'AGENTE', '2026-10-27', 'UNIDAD'), (3, None))
+            query = ('SELECT estado, respuesta_json, version_enviada '
+                     'FROM %s.giscedata_omie_siom_service_execution' % self.schema)
+            cur = self.root.cursor()
+            cur.execute(query)
+            self.assertEqual(cur.fetchone(), ('respondida_pendiente', '{"ok":true}', 3))
+            cur.close()
+            with self.assertRaises(self.servicios.EnvioOMIEPendiente):
+                self.ofertas._reservar(segundo, 8, 'ServicioAltaOfertasMI', oferta_id=101)
+            # Conciliacion automatica solo tras ver el estado ERP confirmado.
+            cur = self.root.cursor()
+            cur.execute('''INSERT INTO %s.giscedata_omie_oferta
+                           (id, ver_mensaje, id_mensaje_respuesta, state)
+                           VALUES (100, 3, 'RESP100', 'enviada')''' % self.schema)
+            cur.close()
+            self.assertEqual(self.ofertas._reservar(
+                segundo, 8, 'ServicioAltaOfertasMI', oferta_id=101), 2)
+            cur = self.root.cursor()
+            cur.execute(query)
+            self.assertEqual(cur.fetchall()[0][0], 'integrada')
+            cur.close()
+        finally:
+            self.ofertas._datos_respuesta = original
+            negocio.close()
+            segundo.close()
+
+
+
 class PgCursor(object):
     """Proxy compatible con API OpenERP: commit, rollback y close sobre conexion."""
     def __init__(self, conn):
@@ -260,6 +340,8 @@ class PgCursor(object):
         return self.cur.execute(*args, **kw)
     def fetchone(self):
         return self.cur.fetchone()
+    def fetchall(self):
+        return self.cur.fetchall()
     @property
     def rowcount(self):
         return self.cur.rowcount

@@ -12,6 +12,12 @@
                     <field name="usuario_id"/>
                     <field name="fecha_intento"/>
                     <field name="estado"/>
+                    <field name="id_mensaje_enviado"/>
+                    <field name="version_enviada"/>
+                    <field name="num_oferta_enviado"/>
+                    <field name="id_unidad"/>
+                    <field name="fecha_sesion"/>
+                    <field name="codigo_respuesta"/>
                     <field name="fecha_fin"/>
                     <field name="detalle"/>
                 </tree>
@@ -28,8 +34,16 @@
                     <field name="usuario_id"/>
                     <field name="fecha_intento"/>
                     <field name="estado"/>
+                    <field name="id_mensaje_enviado"/>
+                    <field name="version_enviada"/>
+                    <field name="num_oferta_enviado"/>
+                    <field name="id_unidad"/>
+                    <field name="fecha_sesion"/>
+                    <field name="codigo_respuesta"/>
                     <field name="fecha_fin"/>
                     <field name="detalle"/>
+                    <field name="id_respuesta"/>
+                    <field name="respuesta_json"/>
                 </form>
             </field>
         </record>

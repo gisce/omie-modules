@@ -449,12 +449,23 @@ class GiscedataOmieOfertaExtend(osv.osv):
         oferta_obj = self.pool.get('giscedata.omie.oferta')
         servicio = self.pool.get('giscedata.omie.siom.service.execution')
 
+        # Advisory lock DISTINTO al carril SOAP de service.execution.
+        # Pertenece a la transaccion de negocio y dura hasta su commit/rollback.
+        # Se adquiere ANTES de leer versiones o construir el mensaje SOAP.
+        # Global para MD/MI: conservador y compatible con la busqueda legacy
+        # de versiones (que no separa todos los numeros de sesion MI).
+        cursor.execute(
+            'SELECT pg_advisory_xact_lock(hashtext(%s), %s)',
+            ('giscedata_omie_api.siom.versiones', 2)
+        )
+
         for oferta_id in ids:
             tipo_mercado = self.read(cursor, uid, oferta_id, ['tipo_mercado'])['tipo_mercado']
             if tipo_mercado == 'MD':
                 oferta_dicc = oferta_obj.mensaje_oferta_md_dicc(cursor, uid, oferta_id, context=context)
             else:
                 oferta_dicc = oferta_obj.mensaje_oferta_mi_dicc(cursor, uid, oferta_id, context=context)
+            oferta_dicc['VerMensaje'] = int(oferta_dicc.get('VerMensaje') or 1)
             # Buscamos las ofertas enviadas anteriormente
             search_vals = [
                 ('tipo_mercado', '=', oferta_dicc.get('Oferta').get('Validez').get('TipoMercado')),
@@ -469,13 +480,41 @@ class GiscedataOmieOfertaExtend(osv.osv):
             if oferta_ids:
                 # Cogemos la versión mas grande de las ofertas encontradas
                 version_oferta = oferta_obj.read(cursor, uid, oferta_ids, ['ver_mensaje'], context=context)
-                max_version = max(int(oferta['ver_mensaje']) for oferta in version_oferta)
+                max_version = max(int(oferta['ver_mensaje'] or 1) for oferta in version_oferta)
                 oferta_dicc['VerMensaje'] = max_version + 1
 
                 # Incrementamos número de oferta de MI, para que no se sustituyan por error
                 if tipo_mercado == 'MI':
                     oferta_dicc['Oferta']['NumOferta'] = len(oferta_ids) + 1
 
+            sesion = oferta_dicc['Oferta']['Validez']['Sesion']
+            ultima_version, ultimo_num = servicio.ultimos_identificadores(
+                cursor, tipo_mercado, oferta_dicc['IdRemitente'],
+                sesion['fecha'], oferta_dicc['Oferta']['IdUnidad']['v'],
+                sesion.get('num'))
+            # El maximo de la auditoria NO depende del snapshot del ORM.
+            # Una version ya enviada (aunque luego hubiera rollback ERP)
+            # nunca se debe reutilizar. El carril SOAP decidira si procede
+            # bloquear por respuesta pendiente o resultado incierto.
+            if ultima_version is not None:
+                oferta_dicc['VerMensaje'] = max(
+                    int(oferta_dicc['VerMensaje']), int(ultima_version) + 1)
+            if tipo_mercado == 'MI' and ultimo_num is not None:
+                oferta_dicc['Oferta']['NumOferta'] = max(
+                    int(oferta_dicc['Oferta'].get('NumOferta') or 1),
+                    int(ultimo_num) + 1)
+
+            # Guardaremos esta version dentro de la transaccion ERP. Si falla
+            # tras el SOAP, quedara la evidencia durable en service.execution.
+            metadatos = {
+                'id_mensaje': oferta_dicc.get('IdMensaje'),
+                'version': oferta_dicc.get('VerMensaje'),
+                'num_oferta': oferta_dicc['Oferta'].get('NumOferta'),
+                'id_remitente': oferta_dicc['IdRemitente'],
+                'fecha_sesion': oferta_dicc['Oferta']['Validez']['Sesion']['fecha'],
+                'id_unidad': oferta_dicc['Oferta']['IdUnidad']['v'],
+                'num_sesion': oferta_dicc['Oferta']['Validez']['Sesion'].get('num'),
+            }
             client = ClientOMIE()
 
             try:
@@ -486,13 +525,15 @@ class GiscedataOmieOfertaExtend(osv.osv):
                     res_oferta_zeep = servicio.ejecutar_servicio(
                         cursor, uid, 'ServicioAltaOfertasMD',
                         lambda: client.ServicioAltaOfertasMD(MensajeOfertasMD=oferta_dicc),
-                        oferta_id=oferta_id
+                        oferta_id=oferta_id, metadatos=metadatos,
+                        permitir_pendientes_propias=True
                     )
                 else:
                     res_oferta_zeep = servicio.ejecutar_servicio(
                         cursor, uid, 'ServicioAltaOfertasMI',
                         lambda: client.ServicioAltaOfertasMI(MensajeOfertasMI=oferta_dicc),
-                        oferta_id=oferta_id
+                        oferta_id=oferta_id, metadatos=metadatos,
+                        permitir_pendientes_propias=True
                     )
 
                 res_oferta_dicc = helpers.serialize_object(res_oferta_zeep)
@@ -512,6 +553,7 @@ class GiscedataOmieOfertaExtend(osv.osv):
                 write_vals = {
                     'fecha_mensaje': datetime.today().strftime('%Y-%m-%d'),
                     'state': state,
+                    'ver_mensaje': oferta_dicc['VerMensaje'],
                     'valida': valida,
                     'sustituida': sustituida,
                 }
