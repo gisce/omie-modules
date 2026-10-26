@@ -137,9 +137,8 @@ class MinimumTimeTests(unittest.TestCase):
         self.cursor = FakeCursor()
         self.obj.consultar_tiempos_minimos = lambda cr, uid, context=None, client=None: []
 
-    def actualizar(self, scope='pruebas2', uid=1):
-        return self.obj.actualizar_tiempos_minimos(
-            self.cursor, uid, scope=scope)
+    def actualizar(self, uid=1):
+        return self.obj.actualizar_tiempos_minimos(self.cursor, uid)
 
     def test_formato_encol(self):
         rows = self.parser.parsear_8101(respuesta([fila()]))
@@ -206,6 +205,9 @@ class MinimumTimeTests(unittest.TestCase):
         self.assertEqual(len(self.obj.rows), 2)
         self.assertEqual(self.sync.creates[0]['estado'], 'con_datos')
         self.assertEqual(len(self.cursor.queries), 1)
+        self.assertEqual(self.cursor.queries[0][1], ('giscedata_omie_api.8101', 'all'))
+        self.assertNotIn('scope', self.obj.creates[0])
+        self.assertNotIn('scope', self.sync.creates[0])
 
     def test_actualiza_una_fila_y_no_la_duplica(self):
         self.obj.consultar_tiempos_minimos = lambda *a, **kw: self.parser.parsear_8101(respuesta([fila()]))
@@ -225,22 +227,25 @@ class MinimumTimeTests(unittest.TestCase):
         self.assertEqual(len(self.obj.rows), 1)
         self.assertEqual(list(self.sync.rows.values())[0]['total_filas'], 0)
 
-    def test_ambitos_separados(self):
+    def test_una_configuracion_por_consulta(self):
         self.obj.consultar_tiempos_minimos = lambda *a, **kw: self.parser.parsear_8101(respuesta([fila()]))
-        self.actualizar('cert1')
-        self.actualizar('cert2')
-        self.assertEqual(len(self.obj.rows), 2)
-        self.assertEqual(len(self.sync.rows), 2)
+        self.actualizar()
+        self.actualizar()
+        self.assertEqual(len(self.obj.rows), 1)
+        self.assertEqual(len(self.sync.rows), 1)
 
     def test_rechaza_usuario_no_autorizado(self):
         with self.assertRaises(Exception):
             self.actualizar(uid=14)
         self.assertEqual(self.cursor.queries, [])
 
-    def test_rechaza_scope_no_valido(self):
-        for scope in ('', 'x' * 129):
-            with self.assertRaises(ValueError):
-                self.actualizar(scope=scope)
+    def test_no_se_exige_ambito(self):
+        self.obj.consultar_tiempos_minimos = lambda *a, **kw: []
+        resultado = self.actualizar()
+        self.assertNotIn('scope', resultado)
+        self.assertFalse(any('scope' in vals for vals in self.sync.creates))
+        with self.assertRaises(TypeError):
+            self.obj.actualizar_tiempos_minimos(self.cursor, 1, scope='default')
 
     def test_no_persiste_si_el_parser_falla(self):
         def error(*a, **kw):
@@ -256,6 +261,8 @@ class MinimumTimeTests(unittest.TestCase):
         models = [node.text for node in doc.findall(".//record[@model='ir.ui.view']/field[@name='model']")]
         self.assertIn('giscedata.omie.siom.minimum.time', models)
         self.assertIn('giscedata.omie.siom.minimum.time.sync', models)
+        with open(os.path.join(APP, 'giscedata_omie_siom_minimum_time_view.xml')) as handle:
+            self.assertNotIn('scope', handle.read())
         access = os.path.join(APP, 'security', 'ir.model.access.csv')
         with open(access, 'r') as f:
             rows = list(csv.DictReader(f))

@@ -18,6 +18,7 @@
     'wizard/wizard_consulta_omie_view.xml',
     'security/giscedata_omie_oferta_security.xml',
     'giscedata_omie_siom_minimum_time_view.xml',
+    'wizard/wizard_siom_minimum_time_view.xml',
     'security/ir.model.access.csv',
   ],
   "active": False,
