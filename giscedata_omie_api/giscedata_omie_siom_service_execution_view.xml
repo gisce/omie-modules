@@ -37,7 +37,7 @@
             <field name="name">Registro de servicios SIOM</field>
             <field name="res_model">giscedata.omie.siom.service.execution</field>
             <field name="view_type">form</field>
-            <field name="view_mode">tree, form</field>
+            <field name="view_mode">tree,form</field>
         </record>
         <menuitem id="menu_siom_service_execution" parent="menu_omie_siom_limits"
                             name="Registro de servicios SIOM" sequence="40"
