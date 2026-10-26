@@ -43,3 +43,4 @@
 "access_giscedata_omie_siom_minimum_time_sync_u","giscedata.omie.siom.minimum.time.sync","model_giscedata_omie_siom_minimum_time_sync","group_giscedata_omie_oferta_u",1,0,0,0
 "access_wizard_siom_minimum_time_update_u","wizard.siom.minimum.time.update","model_wizard_siom_minimum_time_update","group_giscedata_omie_oferta_u",1,1,1,1
 "access_giscedata_omie_siom_query_execution_u","giscedata.omie.siom.query.execution","model_giscedata_omie_siom_query_execution","group_giscedata_omie_oferta_u",1,0,0,0
+"access_giscedata_omie_siom_service_execution_u","giscedata.omie.siom.service.execution","model_giscedata_omie_siom_service_execution","group_giscedata_omie_oferta_u",1,0,0,0

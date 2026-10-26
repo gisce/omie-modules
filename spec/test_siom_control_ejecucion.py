@@ -163,6 +163,7 @@ class ControlTests(unittest.TestCase):
         return {'CodConsulta': 5222, 'Respuesta': []}
 
     def ejecutar(self, codigo=5222, **kwargs):
+        kwargs.setdefault('margen_ms', 0)  # La regresion legacy comprueba cadencia exacta sin margen.
         return self.model.ejecutar_consulta(self.business, 7, codigo, self.llamada, **kwargs)
 
     def test_ejecuta_y_devuelve_respuesta_original(self):

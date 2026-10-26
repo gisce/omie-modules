@@ -197,16 +197,16 @@ class GiscedataOmieCasacion(osv.osv):
     _columns = {
         'name': fields.char('Descripción', size=32, required=True),
         'tipo_mercado': fields.selection(
-            TIPO_MERCADO, "Tipo de Mercado", help="MD: Mercado Diario, MI: Mercado Intradiario",
+            TIPO_MERCADO, "Tipo de Mercado", help=_("MD: Mercado Diario, MI: Mercado Intradiario"),
             required=True, readonly=True, select=1
         ),
         'num_sesion': fields.selection(TIPO_NUM_SESION, "Sesión MI", readonly=True, select=1,
-                                       help="""
-                                            Indica el número de sesión de Mercado Intradiario Europeo (Intraday Auction)\n
-                                            * IDA1: Abierto a las 14:00 del día D+1\n
-                                            * IDA2: Abierto a las 21:00 del día D+1\n
-                                            * IDA3: Abierto a las 09:00 del día D\n
-                                            """),
+                                       help=_("""
+                                              Indica el número de sesión de Mercado Intradiario Europeo (Intraday Auction)\n
+                                              * IDA1: Abierto a las 14:00 del día D+1\n
+                                              * IDA2: Abierto a las 21:00 del día D+1\n
+                                              * IDA3: Abierto a las 09:00 del día D\n
+                                              """)),
         'fecha_sesion': fields.date("Fecha Sesión", select=1, help=_("Fecha del día a ofertar"),
                                     required=True, readonly=True),
         'clase_oferta': fields.selection(CLASE_OFERTA, "Clase de Oferta", select=1, help=_("C: Compra, V: Venta"),
@@ -216,8 +216,8 @@ class GiscedataOmieCasacion(osv.osv):
                                     readonly=True),
         'uni_medida': fields.selection(UNIDAD_MEDIDA, 'Unidad de Medida',
                                        readonly=True,
-                                       help="Determina si la medida de la oferta es de Energía o de Potencia."),
-        'id_unidad': fields.char("ID Unidad", size=16, help="Código de unidad ofertante o física.",
+                                       help=_("Determina si la medida de la oferta es de Energía o de Potencia.")),
+        'id_unidad': fields.char("ID Unidad", size=16, help=_("Código de unidad ofertante o física."),
                                  select=1, required=True, readonly=True),
         'total_energia': fields.function(_get_total_energia, method=True, type="float", string="Medida total",
                                          readonly=True)

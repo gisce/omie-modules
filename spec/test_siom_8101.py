@@ -10,6 +10,13 @@ import types
 import unittest
 from xml.etree import ElementTree
 
+from mock import Mock
+from types import ModuleType
+# Simulamos el módulo tools que proporciona GISCE-ERP.
+tools_mock = ModuleType('tools')
+tools_mock.config = Mock()
+sys.modules['tools'] = tools_mock
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 APP = os.path.join(ROOT, 'giscedata_omie_api')
 
@@ -192,7 +199,7 @@ class MinimumTimeTests(unittest.TestCase):
     def test_consulta_no_modifica_base_de_datos(self):
         client = FakeClient(respuesta([fila()]))
         obj = self.model.GiscedataOmieSiomMinimumTime()
-        result = obj.consultar_tiempos_minimos(self.cursor, 1, client=client)
+        result = obj.consultar_tiempos_minimos(self.cursor, 1, client=client, controlar=False)
         self.assertEqual(result[0]['consulta'], 5222)
         self.assertEqual(client.sent, [{'MensajeEjecucionConsulta': {
             'CodConsulta': '8101', 'Parametros': {'_value_1': []}}}])

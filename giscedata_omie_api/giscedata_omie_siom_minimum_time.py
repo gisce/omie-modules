@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Persistencia y sincronizacion de la consulta 8101 (sin aplicar aun cuotas).
+"""Persistencia y sincronizacion de la consulta 8101.
 
-No modifica el comportamiento de ServicioAltaOfertasMD/MI ni introduce reintentos.
+La consulta queda auditada por el controlador de cadencia SIOM.
 Una respuesta 8101 sin filas deja intactos los limites anteriores.
 """
 from __future__ import absolute_import
 
-from .giscedata_omie_siom_minimum_time_parser import parsear_8101
 from datetime import datetime
+from giscedata_omie_api.giscedata_omie_siom_minimum_time_parser import parsear_8101
 from osv import osv, fields
+from zeep.helpers import serialize_object
+from tools.translate import _
 
 def _utc_ahora():
     return datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
@@ -21,15 +23,17 @@ class GiscedataOmieSiomMinimumTime(osv.osv):
     _rec_name = 'titulo'
     _order = 'consulta asc'
 
-    def consultar_tiempos_minimos(self, cursor, uid, client=None, context=None):
+    def consultar_tiempos_minimos(self, cursor, uid, context=None, client=None,
+                                 controlar=True):
         """Consulta SOLO LECTURA a OMIE. Retorna filas normalizadas, no escribe BDD.
 
-        Se permite inyectar client para pruebas offline. Zeep produce OrderedDict.
+        Se permite inyectar client para pruebas offline. Para aislar
+        unit tests, controlar=False evita el controlador con BDD real.
+        En produccion controlar=True incluso cuando client es inyectado.
+        Zeep produce OrderedDict.
         """
         if context is None:
             context = {}
-
-        from zeep.helpers import serialize_object
 
         if client is None:
             from omie import ClientOMIE
@@ -37,7 +41,14 @@ class GiscedataOmieSiomMinimumTime(osv.osv):
 
         solicitud = {'CodConsulta': '8101', 'Parametros': {'_value_1': []}}
 
-        respuesta = client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=solicitud)
+        if not controlar:
+            respuesta = client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=solicitud)
+        else:
+            control = self.pool.get('giscedata.omie.siom.query.execution')
+            respuesta = control.ejecutar_consulta(
+                cursor, uid, 8101,
+                lambda: client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=solicitud),
+                context=context, reintentos=0)
 
         datos = serialize_object(respuesta)
 
@@ -59,9 +70,9 @@ class GiscedataOmieSiomMinimumTime(osv.osv):
 
         if uid != 1:
             raise osv.except_osv('Permisos insuficientes',
-                                 'La sincronizacion de SIOM requiere el usuario administrador.')
-
-        filas = self.consultar_tiempos_minimos(cursor, uid, context=context, client=client)
+                                 _('La sincronizacion de SIOM requiere el usuario administrador.')
+                                 )
+        filas = self.consultar_tiempos_minimos(cursor, uid, client=client, context=context)
 
         # Serializacion de actualizaciones en esta base de datos (PostgreSQL).
         cursor.execute('SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))',
@@ -106,16 +117,17 @@ class GiscedataOmieSiomMinimumTime(osv.osv):
         return res
 
     _columns = {
-        'consulta': fields.integer('Codigo de consulta', required=True, readonly=True, select=1),
+        'consulta': fields.integer('Código de consulta', required=True, readonly=True, select=1),
         'titulo': fields.char('Titulo OMIE', size=256, required=True, readonly=True),
         'tiempo_agente_ms': fields.integer('Tiempo agente (ms)', required=True, readonly=True),
         'tiempo_certificado_ms': fields.integer('Tiempo certificado (ms)', required=True, readonly=True),
         'tipo_acceso': fields.char('Tipo de acceso', size=64, required=True, readonly=True),
         'fecha_actualizacion': fields.datetime('Ultima observacion UTC', readonly=True)
     }
+
     _sql_constraints = [
         ('omie_8101_codigo_uniq', 'unique(consulta)',
-         'El codigo de consulta ya existe.'),
+         _('El código de consulta ya existe.')),
     ]
 
 
@@ -123,17 +135,16 @@ GiscedataOmieSiomMinimumTime()
 
 
 class GiscedataOmieSiomMinimumTimeSync(osv.osv):
-
     _name = 'giscedata.omie.siom.minimum.time.sync'
     _description = 'Estado de la ultima sincronizacion SIOM 8101'
     _rec_name = 'estado'
 
     _columns = {
-        'estado': fields.selection([('con_datos', 'Datos recibidos'), ('vacia', 'Respuesta vacia')],
-                                  'Resultado de la ultima consulta', required=True,
+        'estado': fields.selection([('con_datos', 'Datos recibidos'), ('vacia', 'Respuesta vacía')],
+                                  'Resultado de la última consulta', required=True,
                                    readonly=True),
-        'fecha_ultimo_intento': fields.datetime('Ultimo intento UTC', readonly=True),
-        'fecha_ultimo_exito': fields.datetime('Ultima respuesta valida UTC', readonly=True),
+        'fecha_ultimo_intento': fields.datetime('Último intento UTC', readonly=True),
+        'fecha_ultimo_exito': fields.datetime('Última respuesta válida UTC', readonly=True),
         'total_filas': fields.integer('Filas recibidas', readonly=True)
     }
 

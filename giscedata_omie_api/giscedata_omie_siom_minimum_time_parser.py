@@ -105,7 +105,7 @@ def parsear_8101(datos):
             raise Formato8101Error('Faltan columnas en 8101: %s' % ','.join(faltantes))
         codigo_fila = _entero_no_negativo(c['CdConsult'], 'CdConsult')
         if codigo_fila in vistos:
-            raise Formato8101Error('Codigo de consulta duplicado: %s' % codigo_fila)
+            raise Formato8101Error('Código de consulta duplicado: %s' % codigo_fila)
         vistos.add(codigo_fila)
         titulo, acceso = c['Titulo'], c['TipoAcceso']
         if not isinstance(titulo, basestring) or not titulo.strip():

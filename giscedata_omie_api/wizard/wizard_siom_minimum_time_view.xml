@@ -17,7 +17,7 @@
                       colspan="2" primary="1"/>
             </group>
           </group>
-          <group col="4" attrs="{'invisible': [('state', '!=', 'done')]}">
+          <group col="4" attrs="{'invisible': [('state', '!=', 'end')]}">
             <field name="info" colspan="4" readonly="1"/>
             <field name="recibidas" readonly="1"/>
             <field name="nuevas" readonly="1"/>

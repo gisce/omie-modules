@@ -8,8 +8,8 @@ No escribe directamente las tablas de limites y no realiza commit.
 from __future__ import absolute_import
 
 import logging
-
 from osv import osv, fields
+from tools.translate import _
 
 _logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ _logger = logging.getLogger(__name__)
 class WizardSiomMinimumTimeUpdate(osv.osv_memory):
 
     _name = 'wizard.siom.minimum.time.update'
-    _description = 'Actualizar tiempos mínimos SIOM (8101) desde OMIE'
+    _description = _('Actualizar tiempos mínimos SIOM (8101) desde OMIE')
 
     def _puede_actualizar(self, cursor, uid, context=None):
         """Denegar por defecto, incluso en invocaciones RPC directas."""
@@ -55,10 +55,10 @@ class WizardSiomMinimumTimeUpdate(osv.osv_memory):
                 'Solo el grupo GISCEDATA Omie / Manager puede actualizar 8101.')
 
         if not ids or len(ids) != 1:
-            raise osv.except_osv('Error', 'Seleccione un unico asistente.')
+            raise osv.except_osv('Error', _('Seleccione un unico asistente.'))
 
         if wizard.state != 'init':
-            raise osv.except_osv('Error', 'Este asistente ya se ha ejecutado.')
+            raise osv.except_osv('Error', _('Este asistente ya se ha ejecutado.'))
 
         _logger.info('Actualizacion manual de SIOM 8101 solicitada por uid=%s', uid)
 
@@ -76,7 +76,7 @@ class WizardSiomMinimumTimeUpdate(osv.osv_memory):
                  '\nRegistros actualizados: {actualizadas}').format(**result)
 
         vals = {
-            'state': 'done',
+            'state': 'end',
             'info': info,
             'recibidas': result['recibidas'],
             'nuevas': result['nuevas'],
