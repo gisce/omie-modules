@@ -154,6 +154,102 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
         self.assertFalse(hilo.is_alive())
         self.assertFalse(fallos)
 
+    def test_10d1_preparacion_antigua_se_cancela_sin_soap(self):
+        ejecucion = self.ofertas._reservar(self.business, 7,
+            'ServicioAltaOfertasMD', oferta_id=100)
+        cur = self.root.cursor()
+        cur.execute("UPDATE %s.giscedata_omie_siom_service_execution "
+                    "SET fecha_intento=fecha_intento - interval '10 minutes' "
+                    "WHERE id=%%s" % self.schema, (ejecucion,))
+        cur.close()
+        self.assertEqual(self.ofertas.recuperar_envios_pendientes(
+            self.business, 7), 1)
+        with self.assertRaises(self.servicios.EnvioOMIEPendiente):
+            self.ofertas._iniciar_envio(self.business, ejecucion)
+        cur = self.root.cursor()
+        cur.execute('SELECT estado FROM %s.giscedata_omie_siom_service_execution'
+                    ' WHERE id=%%s' % self.schema, (ejecucion,))
+        self.assertEqual(cur.fetchone()[0], 'cancelada')
+        cur.close()
+        self.assertTrue(self.ofertas.ejecutar_servicio(
+            self.business, 7, 'ServicioAltaOfertasMI', lambda: True,
+            oferta_id=101))
+
+    def test_10d1_envio_iniciado_no_se_recupera_por_tiempo(self):
+        ejecucion = self.ofertas._reservar(self.business, 7,
+            'ServicioAltaOfertasMD', oferta_id=100)
+        self.ofertas._iniciar_envio(self.business, ejecucion)
+        cur = self.root.cursor()
+        cur.execute("UPDATE %s.giscedata_omie_siom_service_execution "
+                    "SET fecha_intento=fecha_intento - interval '10 hours' "
+                    "WHERE id=%%s" % self.schema, (ejecucion,))
+        cur.close()
+        self.assertEqual(self.ofertas.recuperar_envios_pendientes(
+            self.business, 7), 0)
+        with self.assertRaises(self.servicios.EnvioOMIEPendiente):
+            self.ofertas._reservar(self.business, 8,
+                'ServicioAltaOfertasMI', oferta_id=101)
+
+    def test_10d1_cancelacion_y_promocion_compiten_atomicamente(self):
+        ejecucion = self.ofertas._reservar(self.business, 7,
+            'ServicioAltaOfertasMD', oferta_id=100)
+        cur = self.root.cursor()
+        cur.execute("UPDATE %s.giscedata_omie_siom_service_execution "
+                    "SET fecha_intento=fecha_intento - interval '10 minutes' "
+                    "WHERE id=%%s" % self.schema, (ejecucion,))
+        cur.close()
+        empezar = threading.Event()
+        acciones = []
+        fallos = []
+        def intentar_enviar():
+            try:
+                empezar.wait(3)
+                self.ofertas._iniciar_envio(self.business, ejecucion)
+                acciones.append('enviando')
+            except self.servicios.EnvioOMIEPendiente:
+                acciones.append('cancelada')
+            except Exception as exc:
+                fallos.append(exc)
+        def intentar_cancelar():
+            try:
+                empezar.wait(3)
+                self.ofertas.recuperar_envios_pendientes(self.business, 7)
+            except Exception as exc:
+                fallos.append(exc)
+        t1 = threading.Thread(target=intentar_enviar)
+        t2 = threading.Thread(target=intentar_cancelar)
+        t1.start()
+        t2.start()
+        empezar.set()
+        t1.join(5)
+        t2.join(5)
+        self.assertFalse(t1.is_alive() or t2.is_alive())
+        self.assertFalse(fallos)
+        cur = self.root.cursor()
+        cur.execute('SELECT estado FROM %s.giscedata_omie_siom_service_execution'
+                    ' WHERE id=%%s' % self.schema, (ejecucion,))
+        estado = cur.fetchone()[0]
+        cur.close()
+        self.assertIn(estado, ('enviando', 'cancelada'))
+        self.assertEqual(acciones, [estado])
+
+    def test_10d1_auditoria_sobrevive_rollback_del_negocio(self):
+        negocio = PgCursor(psycopg2.connect(
+            DSN, options='-c search_path=%s' % self.schema))
+        try:
+            negocio.execute('SELECT 1')
+            self.assertTrue(self.ofertas.ejecutar_servicio(
+                negocio, 7, 'ServicioAltaOfertasMD', lambda: True,
+                oferta_id=100))
+            negocio.rollback()
+        finally:
+            negocio.close()
+        cur = self.root.cursor()
+        cur.execute('SELECT estado FROM %s.giscedata_omie_siom_service_execution'
+                    ' ORDER BY id DESC LIMIT 1' % self.schema)
+        self.assertEqual(cur.fetchone()[0], 'respondida')
+        cur.close()
+
 
 class PgCursor(object):
     """Proxy compatible con API OpenERP: commit, rollback y close sobre conexion."""

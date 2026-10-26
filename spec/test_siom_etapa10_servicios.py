@@ -8,7 +8,7 @@ import sys
 import threading
 import types
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from xml.etree import ElementTree
 
 from mock import Mock
@@ -54,39 +54,70 @@ class ServicioCursor(object):
         self.result = []
         self.rowcount = 0
         self.pending_insert = None
-        self.pending_update = None
+        self.pending_updates = []
 
     def execute(self, sql, params=()):
         clean = ' '.join(sql.lower().split())
         self.db.queries.append((sql, params))
         self.rowcount = 0
+        self.result = []
         if 'pg_advisory_xact_lock' in clean:
             self.db.lock.acquire()
             self.locked = True
         elif clean.startswith('select id, servicio, estado'):
-            pending = [r for r in self.db.rows if r['servicio'] in
-                       ('ServicioAltaOfertasMD', 'ServicioAltaOfertasMI')
-                       and r['estado'] in ('reservada', 'incierta')]
-            self.result = [(r['id'], r['servicio'], r['estado']) for r in pending[-1:]]
+            changes = {r['id']: state for r, state, detail in self.pending_updates}
+            pending = [(r['id'], r['servicio'], changes.get(r['id'], r['estado']))
+                       for r in self.db.rows if r['servicio'] in
+                       ('ServicioAltaOfertasMD', 'ServicioAltaOfertasMI') and
+                       changes.get(r['id'], r['estado']) in
+                       ('preparada', 'enviando', 'incierta', 'reservada')]
+            self.result = pending[-1:]
+        elif clean.startswith('select estado,'):
+            row = next((r for r in self.db.rows if r['id'] == params[1] and
+                        r['servicio'] in ('ServicioAltaOfertasMD',
+                                         'ServicioAltaOfertasMI')), None)
+            if row:
+                self.result = [(row['estado'],
+                                row['fecha_intento'] <= datetime.utcnow() -
+                                timedelta(seconds=params[0]))]
         elif clean.startswith('insert into giscedata_omie_siom_service_execution'):
             new_id = self.db.counter
             self.db.counter += 1
             self.pending_insert = {
                 'id': new_id, 'servicio': params[0], 'oferta_id': params[1],
                 'usuario_id': params[2], 'fecha_intento': datetime.utcnow(),
-                'estado': 'reservada', 'detalle': '', 'fecha_fin': None}
+                'estado': params[3], 'detalle': params[4], 'fecha_fin': None}
             self.result = [(new_id,)]
         elif clean.startswith('update giscedata_omie_siom_service_execution'):
-            if "estado='reconciliada'" in clean:
+            if "estado='cancelada'" in clean:
+                old = datetime.utcnow() - timedelta(seconds=params[0])
+                rows = [r for r in self.db.rows if r['estado'] == 'preparada' and
+                        r['servicio'] in ('ServicioAltaOfertasMD', 'ServicioAltaOfertasMI')
+                        and r['fecha_intento'] <= old]
+                for row in rows:
+                    self.pending_updates.append((row, 'cancelada',
+                                                 'Preparacion caducada: anulada antes del envio SOAP'))
+                self.rowcount = len(rows)
+            elif "set estado='enviando'" in clean:
+                row = next((r for r in self.db.rows if r['id'] == params[0] and
+                            r['estado'] == 'preparada'), None)
+                if row:
+                    self.pending_updates.append((row, 'enviando', 'Envio SOAP autorizado'))
+                    self.rowcount = 1
+            elif "estado='reconciliada'" in clean:
                 row = next((r for r in self.db.rows if r['id'] == params[1] and
-                            r['estado'] == 'incierta' and
-                            r['servicio'] in ('ServicioAltaOfertasMD', 'ServicioAltaOfertasMI')), None)
-                self.pending_update = (row, 'reconciliada', params[0]) if row else None
+                            r['estado'] == params[2] and
+                            r['servicio'] in ('ServicioAltaOfertasMD',
+                                             'ServicioAltaOfertasMI')), None)
+                if row:
+                    self.pending_updates.append((row, 'reconciliada', params[0]))
+                    self.rowcount = 1
             else:
                 row = next((r for r in self.db.rows if r['id'] == params[2] and
-                            r['estado'] == 'reservada'), None)
-                self.pending_update = (row, params[0], params[1]) if row else None
-            self.rowcount = int(self.pending_update is not None)
+                            r['estado'] == 'enviando'), None)
+                if row:
+                    self.pending_updates.append((row, params[0], params[1]))
+                    self.rowcount = 1
         else:
             raise AssertionError('SQL no soportado: %s' % sql)
 
@@ -98,10 +129,12 @@ class ServicioCursor(object):
     def commit(self):
         if self.pending_insert:
             self.db.rows.append(self.pending_insert)
-        if self.pending_update:
-            row, state, detail = self.pending_update
-            row['estado'], row['detalle'], row['fecha_fin'] = state, detail, datetime.utcnow()
-        self.pending_insert = self.pending_update = None
+        for row, state, detail in self.pending_updates:
+            row['estado'], row['detalle'] = state, detail
+            if state not in ('enviando',):
+                row['fecha_fin'] = datetime.utcnow()
+        self.pending_insert = None
+        self.pending_updates = []
         self.db.commits += 1
         self._unlock()
 
@@ -111,7 +144,8 @@ class ServicioCursor(object):
             self.locked = False
 
     def rollback(self):
-        self.pending_insert = self.pending_update = None
+        self.pending_insert = None
+        self.pending_updates = []
         self._unlock()
 
     def close(self):
@@ -197,13 +231,13 @@ class ServiceTests(unittest.TestCase):
     def test_reserva_confirmada_antes_de_soap(self):
         def ejecutar():
             self.assertEqual(len(self.db.rows), 1)
-            self.assertEqual(self.db.rows[0]['estado'], 'reservada')
-            self.assertEqual(self.db.commits, 1)
+            self.assertEqual(self.db.rows[0]['estado'], 'enviando')
+            self.assertEqual(self.db.commits, 2)
             return True
         self.model.ejecutar_servicio(self.cr, 7, 'ServicioAltaOfertasMD',
                                     ejecutar, oferta_id=1)
         self.assertFalse(self.cr.called)
-        self.assertEqual(self.db.commits, 2)
+        self.assertEqual(self.db.commits, 3)
 
     def test_excepcion_servicio_informativo_no_bloquea_ofertas(self):
         def fallar():
@@ -253,6 +287,119 @@ class ServiceTests(unittest.TestCase):
         self.assertFalse(t.is_alive())
         self.assertEqual(resultados, [True])
         self.assertEqual(len(self.db.rows), 1)
+
+    def test_10d1_reserva_preparada_sin_soap_y_promocion_antes_de_enviar(self):
+        envio = self.model._reservar(self.cr, 7, 'ServicioAltaOfertasMD', oferta_id=11)
+        self.assertEqual(self.db.rows[0]['estado'], 'preparada')
+        self.assertEqual(self.db.commits, 1)
+        self.model._iniciar_envio(self.cr, envio)
+        self.assertEqual(self.db.rows[0]['estado'], 'enviando')
+        self.assertEqual(self.db.commits, 2)
+        self.model._finalizar(self.cr, envio, 'respondida', 'Ok')
+        self.assertEqual(self.db.rows[0]['estado'], 'respondida')
+
+    def test_10d1_preparada_reciente_no_se_cancela(self):
+        self.model._reservar(self.cr, 7, 'ServicioAltaOfertasMD', oferta_id=11)
+        self.assertEqual(self.model.recuperar_envios_pendientes(self.cr, 7), 0)
+        with self.assertRaises(self.module.EnvioOMIEPendiente):
+            self.model._reservar(self.cr, 8, 'ServicioAltaOfertasMI', oferta_id=12)
+        self.assertEqual(self.db.rows[0]['estado'], 'preparada')
+
+    def test_10d1_preparada_antigua_se_cancela_y_deja_pasar_mi(self):
+        self.model._reservar(self.cr, 7, 'ServicioAltaOfertasMD', oferta_id=11)
+        self.db.rows[0]['fecha_intento'] -= timedelta(minutes=5)
+        self.assertEqual(self.model.recuperar_envios_pendientes(self.cr, 7), 1)
+        self.assertEqual(self.db.rows[0]['estado'], 'cancelada')
+        self.assertIsNotNone(self.db.rows[0]['fecha_fin'])
+        self.assertTrue(self.model.ejecutar_servicio(
+            self.cr, 7, 'ServicioAltaOfertasMI', lambda: True, oferta_id=12))
+        self.assertEqual([r['estado'] for r in self.db.rows],
+                         ['cancelada', 'respondida'])
+
+    def test_10d1_preparada_caducada_se_recupera_durante_reserva(self):
+        self.model._reservar(self.cr, 7, 'ServicioAltaOfertasMD', oferta_id=11)
+        self.db.rows[0]['fecha_intento'] -= timedelta(minutes=5)
+        # No hace falta llamar explicitamente a recuperar: _reservar lo hace.
+        nuevo = self.model._reservar(self.cr, 7, 'ServicioAltaOfertasMI', oferta_id=12)
+        self.assertEqual(nuevo, 2)
+        self.assertEqual([r['estado'] for r in self.db.rows],
+                         ['cancelada', 'preparada'])
+
+    def test_10d1_cas_perdida_no_permite_soap(self):
+        envio = self.model._reservar(self.cr, 7, 'ServicioAltaOfertasMD', oferta_id=11)
+        self.db.rows[0]['fecha_intento'] -= timedelta(minutes=5)
+        self.model.recuperar_envios_pendientes(self.cr, 7)
+        with self.assertRaises(self.module.EnvioOMIEPendiente):
+            self.model._iniciar_envio(self.cr, envio)
+        self.assertEqual(self.db.rows[0]['estado'], 'cancelada')
+
+    def test_10d1_cas_cancelada_no_invoca_soap_ni_una_vez(self):
+        calls = []
+        iniciar = self.model._iniciar_envio
+        def cancelar_antes(cr, execution_id):
+            self.db.rows[0]['fecha_intento'] -= timedelta(minutes=5)
+            self.model.recuperar_envios_pendientes(cr, 7)
+            return iniciar(cr, execution_id)
+        self.model._iniciar_envio = cancelar_antes
+        with self.assertRaises(self.module.EnvioOMIEPendiente):
+            self.model.ejecutar_servicio(
+                self.cr, 7, 'ServicioAltaOfertasMD',
+                lambda: calls.append('SOAP'), oferta_id=11)
+        self.assertEqual(calls, [])
+        self.assertEqual(self.db.rows[0]['estado'], 'cancelada')
+
+    def test_10d1_enviando_antiguo_nunca_se_libera_solo(self):
+        envio = self.model._reservar(self.cr, 7, 'ServicioAltaOfertasMD', oferta_id=11)
+        self.model._iniciar_envio(self.cr, envio)
+        self.db.rows[0]['fecha_intento'] -= timedelta(days=2)
+        self.assertEqual(self.model.recuperar_envios_pendientes(self.cr, 7), 0)
+        with self.assertRaises(self.module.EnvioOMIEPendiente):
+            self.model._reservar(self.cr, 8, 'ServicioAltaOfertasMI', oferta_id=12)
+        self.assertEqual(self.db.rows[0]['estado'], 'enviando')
+
+    def test_10d1_conciliar_enviando_solo_con_pruebas_y_antiguedad(self):
+        envio = self.model._reservar(self.cr, 7, 'ServicioAltaOfertasMD', oferta_id=11)
+        self.model._iniciar_envio(self.cr, envio)
+        razon = 'Comprobado contra OMIE y proceso ERP finalizado'
+        with self.assertRaises(ValueError):
+            self.model.conciliar_envio(self.cr, 1, envio, razon)
+        with self.assertRaises(ValueError):
+            self.model.conciliar_envio(self.cr, 1, envio, razon,
+                                      proceso_terminado=True)
+        self.db.rows[0]['fecha_intento'] -= timedelta(minutes=10)
+        self.assertTrue(self.model.conciliar_envio(self.cr, 1, envio, razon,
+                                                   proceso_terminado=True))
+        self.assertEqual(self.db.rows[0]['estado'], 'reconciliada')
+        self.assertTrue(self.model.ejecutar_servicio(
+            self.cr, 7, 'ServicioAltaOfertasMI', lambda: True, oferta_id=12))
+
+    def test_10d1_legacy_reservada_conserva_bloqueo(self):
+        envio = self.model._reservar(self.cr, 7, 'ServicioAltaOfertasMD', oferta_id=11)
+        self.db.rows[0]['estado'] = 'reservada'
+        self.db.rows[0]['fecha_intento'] -= timedelta(days=1)
+        self.assertEqual(self.model.recuperar_envios_pendientes(self.cr, 7), 0)
+        with self.assertRaises(self.module.EnvioOMIEPendiente):
+            self.model._reservar(self.cr, 8, 'ServicioAltaOfertasMI', oferta_id=12)
+        with self.assertRaises(ValueError):
+            self.model.conciliar_envio(
+                self.cr, 1, envio, 'Resultado contrastado en OMIE')
+
+    def test_10d1_preparada_no_conciliable_manualmente(self):
+        envio = self.model._reservar(self.cr, 7, 'ServicioAltaOfertasMD', oferta_id=11)
+        self.db.rows[0]['fecha_intento'] -= timedelta(days=1)
+        with self.assertRaises(ValueError):
+            self.model.conciliar_envio(
+                self.cr, 1, envio, 'Verificado manualmente en OMIE',
+                proceso_terminado=True)
+        self.assertEqual(self.db.rows[0]['estado'], 'preparada')
+
+    def test_10d1_migracion_no_declara_reserva_antigua_seguramente_cancelable(self):
+        path = os.path.join(APP, 'migrations', '5.0.26.12',
+                            'post-0006_siom_envio_recuperacion.py')
+        with open(path) as f:
+            codigo = f.read()
+        self.assertIn("SET estado='incierta'", codigo)
+        self.assertIn("WHERE estado='reservada'", codigo)
 
     def test_servicios_y_ofertas_integrados_en_codigo_erp(self):
         with open(os.path.join(APP, 'giscedata_omie_oferta.py')) as f:

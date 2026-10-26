@@ -219,7 +219,7 @@ class WizardTests(unittest.TestCase):
 
     def test_resultados_visibles(self):
         self.call()
-        self.assertEqual(self.wizard.record.state, 'done')
+        self.assertEqual(self.wizard.record.state, 'end')
         self.assertEqual(self.wizard.record.recibidas, 2)
         self.assertEqual(self.wizard.record.nuevas, 1)
         self.assertEqual(self.wizard.record.actualizadas, 1)
@@ -229,7 +229,7 @@ class WizardTests(unittest.TestCase):
         self.minimum.result = {'estado': 'vacia', 'recibidas': 0,
                                'nuevas': 0, 'actualizadas': 0}
         self.call()
-        self.assertEqual(self.wizard.record.state, 'done')
+        self.assertEqual(self.wizard.record.state, 'end')
         self.assertIn('sin filas', self.wizard.record.info)
         self.assertIn('Se conservan', self.wizard.record.info)
 
