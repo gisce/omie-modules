@@ -595,5 +595,59 @@ class ServiceTests(unittest.TestCase):
             self.assertIn(service, contenido)
 
 
+    # 10D.3: la respuesta ya recibida no puede darse por integrada
+    # si su serializacion no es fiable.
+
+    def test_10d3_error_serializacion_no_libera_md_mi(self):
+        llamadas = [0]
+        def soap():
+            llamadas[0] += 1
+            return {'Respuesta': 'corrupta'}
+        def fallo(respuesta):
+            raise UnicodeError('Error convirtiendo Zeep')
+        self.model._datos_respuesta = fallo
+        with self.assertRaises(UnicodeError):
+            self.model.ejecutar_servicio(
+                self.cr, 7, 'ServicioAltaOfertasMI', soap,
+                oferta_id=100, metadatos={'version': 2})
+        self.assertEqual(llamadas, [1])
+        self.assertEqual(self.db.rows[0]['estado'], 'incierta')
+        with self.assertRaises(self.module.EnvioOMIEPendiente):
+            self.model.ejecutar_servicio(
+                self.cr, 7, 'ServicioAltaOfertasMD',
+                lambda: self.fail('No enviar MD'), oferta_id=101)
+
+    def test_10d3_error_serializacion_y_auditoria_prioriza_parseo(self):
+        def fallo_serializacion(respuesta):
+            raise TypeError('Zeep no serializable')
+        def fallo_finalizar(*args, **kwargs):
+            raise IOError('Sin conexion PG')
+        self.model._datos_respuesta = fallo_serializacion
+        self.model._finalizar = fallo_finalizar
+        with self.assertRaises(TypeError) as err:
+            self.model.ejecutar_servicio(
+                self.cr, 7, 'ServicioAltaOfertasMD',
+                lambda: {'Respuesta': 'ok'},
+                oferta_id=100, metadatos={'version': 2})
+        self.assertIn('Zeep no serializable', str(err.exception))
+        # El bloqueo de seguridad no se libera cuando la auditoria falla.
+        self.assertEqual(self.db.rows[0]['estado'], 'enviando')
+        with self.assertRaises(self.module.EnvioOMIEPendiente):
+            self.model._reservar(self.cr, 7, 'ServicioAltaOfertasMI', oferta_id=101)
+
+    def test_10d3_error_soap_y_auditoria_prioriza_excepcion_original(self):
+        def fallo_finalizar(*args, **kwargs):
+            raise IOError('Fallo registrando')
+        self.model._finalizar = fallo_finalizar
+        def soap():
+            raise RuntimeError('Error SOAP original')
+        with self.assertRaises(RuntimeError) as err:
+            self.model.ejecutar_servicio(
+                self.cr, 7, 'ServicioAltaOfertasMD', soap, oferta_id=100)
+        self.assertIn('SOAP original', str(err.exception))
+        self.assertEqual(self.db.rows[0]['estado'], 'enviando')
+
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -213,6 +213,21 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
         finally:
             dbcr.close()
 
+    def _finalizar_sin_ocultar(self, cr, execution_id, estado, detalle):
+        """Mejor esfuerzo de auditoria sin sustituir la excepcion original.
+
+        Si falla PostgreSQL, la reserva sigue siendo conservadora: no se
+        intenta otro SOAP automaticamente. El error de auditoria va al log.
+        """
+        try:
+            self._finalizar(cr, execution_id, estado, detalle)
+            return True
+        except Exception:
+            _logger.exception(
+                'No se pudo registrar el resultado SIOM del intento %s',
+                execution_id)
+            return False
+
     def _refrescar_8101(self, cr):
         """Transaccion independiente: la sincronizacion sobrevive a rollback ERP.
 
@@ -294,19 +309,38 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
             try:
                 respuesta = llamada()
             except BaseException as exc:
-                frecuencia = _rechazo_en_excepcion(exc)
+                # Incluso interpretar una Fault puede fallar. Nunca perder la
+                # excepcion SOAP ni dejar la reserva sin un cierre intentado.
+                try:
+                    frecuencia = _rechazo_en_excepcion(exc)
+                except Exception:
+                    _logger.exception('Error al interpretar excepcion SOAP SIOM')
+                    frecuencia = None
                 if frecuencia:
-                    self._finalizar(cr, intento, 'rechazada_frecuencia', frecuencia)
+                    if not self._finalizar_sin_ocultar(
+                            cr, intento, 'rechazada_frecuencia', frecuencia):
+                        # Python 2.7: un raise implicito puede recuperar una
+                        # excepcion secundaria; conservar la SOAP original.
+                        raise exc
                     ultimo_detalle = frecuencia
                 else:
-                    try:
-                        self._finalizar(cr, intento, 'incierta',
-                                       'Excepcion local o transporte: %s' % type(exc).__name__)
-                    except Exception:
-                        pass
-                    raise
+                    self._finalizar_sin_ocultar(
+                        cr, intento, 'incierta',
+                        'Excepcion local o transporte: %s' % type(exc).__name__)
+                    # En Python 2.7, relanzar explicitamente la excepcion
+                    # original evita propagar el error de interpretacion.
+                    raise exc
             else:
-                frecuencia = _rechazo_en_respuesta(respuesta, codigos_frecuencia)
+                try:
+                    frecuencia = _rechazo_en_respuesta(respuesta, codigos_frecuencia)
+                except BaseException as exc:
+                    # SOAP respondio, pero no sabemos interpretar el resultado.
+                    # La consulta NO se reintenta; la evidencia es incierta.
+                    self._finalizar_sin_ocultar(
+                        cr, intento, 'incierta',
+                        'SOAP recibido; error interpretando respuesta: %s' %
+                        type(exc).__name__)
+                    raise exc
                 self._finalizar(cr, intento,
                                'rechazada_frecuencia' if frecuencia else 'respondida',
                                frecuencia or 'SOAP respondido; verificar Respuesta OMIE')

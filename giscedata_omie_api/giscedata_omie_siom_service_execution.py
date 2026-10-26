@@ -12,10 +12,13 @@ llegado a OMIE. Nunca se reintentan automaticamente las ofertas.
 from __future__ import absolute_import
 
 import json
+import logging
 
 from osv import osv, fields
 from tools.translate import _
 
+
+_logger = logging.getLogger(__name__)
 
 SERVICIOS_OFERTAS = ('ServicioAltaOfertasMD', 'ServicioAltaOfertasMI')
 # Una preparacion normal dura milisegundos; este limite evita cancelar
@@ -348,20 +351,28 @@ class GiscedataOmieSiomServiceExecution(osv.osv):
                                'Excepcion en SOAP: %s' % type(exc).__name__)
             except Exception:
                 # Conservar la excepcion original. 'enviando' sigue bloqueando.
-                pass
-            raise
+                _logger.exception(
+                    'No se pudo registrar fallo SOAP SIOM del intento %s',
+                    execution_id)
+            # Python 2.7 puede relanzar el IOError de auditoria en vez
+            # de la excepcion original de SOAP si usamos raise a secas.
+            raise exc
         if servicio in SERVICIOS_OFERTAS and metadatos is not None:
             # Si falla parseo/persistencia NO liberar el carril: puede haberse
             # procesado en OMIE y no hay evidencia durable de la respuesta.
             try:
                 self._finalizar_con_respuesta(cr, execution_id, respuesta)
-            except BaseException:
+            except BaseException as exc:
                 try:
                     self._finalizar(cr, execution_id, 'incierta',
                                    'SOAP recibido; fallo al persistir respuesta')
                 except Exception:
-                    pass
-                raise
+                    # Sin estado durable, permanece 'enviando' y bloquea
+                    # futuros envios MD/MI. No ocultar el error de parseo.
+                    _logger.exception(
+                        'No se pudo marcar incierta la respuesta SIOM %s',
+                        execution_id)
+                raise exc
         else:
             self._finalizar(cr, execution_id, 'respondida',
                            'Respuesta SOAP recibida; validar resultado funcional')
@@ -423,8 +434,8 @@ class GiscedataOmieSiomServiceExecution(osv.osv):
         # Sin FK: oferta creada en la transaccion ERP todavia no confirmada.
         'oferta_id': fields.integer('ID de oferta origen', readonly=True),
         'usuario_id': fields.many2one('res.users', 'Usuario', readonly=True),
-        'fecha_intento': fields.datetime('Peticion UTC', required=True, readonly=True),
-        'fecha_fin': fields.datetime('Finalizacion UTC', readonly=True),
+        'fecha_intento': fields.datetime('Peticion UTC', required=True, readonly=True, timezone='UTC'),
+        'fecha_fin': fields.datetime('Finalizacion UTC', readonly=True, timezone='UTC'),
         'id_mensaje_enviado': fields.char('ID mensaje enviado', size=64, readonly=True),
         'version_enviada': fields.integer('Version enviada', readonly=True),
         'num_oferta_enviado': fields.integer('Numero oferta MI enviado', readonly=True),

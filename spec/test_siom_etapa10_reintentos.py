@@ -168,5 +168,125 @@ class ReintentosTests(unittest.TestCase):
         self.ejecutar(margen_ms=500)
 
 
+    # 10D.3: fallos al interpretar la respuesta SIN perder auditoria.
+
+    def test_10d3_parseo_respuesta_fallido_deja_incierta(self):
+        analizar = self.module._rechazo_en_respuesta
+        llamadas = [0]
+        def llamada():
+            llamadas[0] += 1
+            return {'Respuesta': []}
+        def fallar(*args, **kwargs):
+            raise ValueError('respuesta inesperada')
+        self.module._rechazo_en_respuesta = fallar
+        try:
+            with self.assertRaises(ValueError):
+                self.model.ejecutar_consulta(
+                    self.business, 7, 5222, llamada, reintentos=2)
+        finally:
+            self.module._rechazo_en_respuesta = analizar
+        self.assertEqual(llamadas, [1])
+        self.assertEqual(len(self.db.attempts), 1)
+        self.assertEqual(self.db.attempts[0]['estado'], 'incierta')
+        self.assertIn('ValueError', self.db.attempts[0]['detalle'])
+        self.assertIsNotNone(self.db.attempts[0]['fecha_fin'])
+        self.assertFalse(self.business.called)
+
+    def test_10d3_parseo_no_oculta_excepcion_si_falla_auditoria(self):
+        analizar = self.module._rechazo_en_respuesta
+        finalizar = self.model._finalizar
+        def fallar(*args, **kwargs):
+            raise UnicodeError('respuesta no decodificable')
+        def fallo_registro(*args, **kwargs):
+            raise IOError('Base de datos no disponible')
+        self.module._rechazo_en_respuesta = fallar
+        self.model._finalizar = fallo_registro
+        try:
+            with self.assertRaises(UnicodeError) as err:
+                self.model.ejecutar_consulta(
+                    self.business, 7, 5222, lambda: {'Respuesta': []},
+                    reintentos=2)
+            self.assertIn('respuesta no decodificable', str(err.exception))
+        finally:
+            self.module._rechazo_en_respuesta = analizar
+            self.model._finalizar = finalizar
+        # La caida de PostgreSQL impide confirmar el estado; no se
+        # llama a SOAP otra vez ni se finge un resultado 'respondida'.
+        self.assertEqual(len(self.db.attempts), 1)
+        self.assertEqual(self.db.attempts[0]['estado'], 'reservada')
+
+    def test_10d3_interprete_excepcion_soap_falla_preserva_error(self):
+        analizar = self.module._rechazo_en_excepcion
+        llamadas = [0]
+        def soap():
+            llamadas[0] += 1
+            raise IOError('SOAP interrumpido')
+        def fallo_analisis(*args):
+            raise ValueError('Fault ilegible')
+        self.module._rechazo_en_excepcion = fallo_analisis
+        try:
+            with self.assertRaises(IOError) as err:
+                self.model.ejecutar_consulta(
+                    self.business, 7, 5222, soap, reintentos=2)
+            self.assertIn('SOAP interrumpido', str(err.exception))
+        finally:
+            self.module._rechazo_en_excepcion = analizar
+        self.assertEqual(llamadas, [1])
+        self.assertEqual(self.db.attempts[0]['estado'], 'incierta')
+
+    def test_10d3_rechazo_explicito_sin_auditoria_no_reintenta(self):
+        interpretar = self.module._rechazo_en_excepcion
+        finalizar = self.model._finalizar
+        veces = [0]
+        def soap():
+            veces[0] += 1
+            raise IOError('Fault original')
+        def fallo_registro(*args, **kwargs):
+            raise RuntimeError('No se pudo registrar el rechazo')
+        self.module._rechazo_en_excepcion = lambda exc: 'HTTP 429'
+        self.model._finalizar = fallo_registro
+        try:
+            with self.assertRaises(IOError) as err:
+                self.model.ejecutar_consulta(
+                    self.business, 7, 5222, soap, reintentos=2)
+            self.assertIn('Fault original', str(err.exception))
+        finally:
+            self.module._rechazo_en_excepcion = interpretar
+            self.model._finalizar = finalizar
+        self.assertEqual(veces, [1])
+        self.assertEqual(self.db.attempts[0]['estado'], 'reservada')
+
+    def test_10d3_interrupcion_al_interpretar_no_deja_reservada(self):
+        analizar = self.module._rechazo_en_respuesta
+        def interrumpir(*args, **kwargs):
+            raise KeyboardInterrupt()
+        self.module._rechazo_en_respuesta = interrumpir
+        try:
+            with self.assertRaises(KeyboardInterrupt):
+                self.model.ejecutar_consulta(
+                    self.business, 7, 5222, lambda: {'Respuesta': []})
+        finally:
+            self.module._rechazo_en_respuesta = analizar
+        self.assertEqual(self.db.attempts[0]['estado'], 'incierta')
+
+    def test_10d3_parseo_fallido_sigue_contando_para_cadencia(self):
+        self.db.limits[5222] = (5000, 3000)
+        analizar = self.module._rechazo_en_respuesta
+        self.module._rechazo_en_respuesta = lambda *args, **kwargs: (_ for _ in ()).throw(ValueError('mal'))
+        try:
+            with self.assertRaises(ValueError):
+                self.model.ejecutar_consulta(
+                    self.business, 7, 5222, lambda: {'Respuesta': []},
+                    margen_ms=0)
+        finally:
+            self.module._rechazo_en_respuesta = analizar
+        with self.assertRaises(self.module.TiempoMinimoNoCumplido):
+            self.model.ejecutar_consulta(
+                self.business, 7, 5222, lambda: self.fail('SOAP prematuro'),
+                margen_ms=0)
+        self.assertEqual(len(self.db.attempts), 1)
+
+
+
 if __name__ == '__main__':
     unittest.main()
