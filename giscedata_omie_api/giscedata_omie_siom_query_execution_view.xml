@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <record id="view_siom_query_execution_tree" model="ir.ui.view">
+            <field name="name">giscedata.omie.siom.query.execution.tree</field>
+            <field name="model">giscedata.omie.siom.query.execution</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Intentos de consulta SIOM">
+                    <field name="consulta"/>
+                    <field name="usuario_id"/>
+                    <field name="fecha_intento"/>
+                    <field name="estado"/>
+                    <field name="configurada"/>
+                    <field name="limite_ms"/>
+                    <field name="fecha_fin"/>
+                    <field name="detalle"/>
+                </tree>
+            </field>
+        </record>
+        <record id="view_siom_query_execution_form" model="ir.ui.view">
+            <field name="name">giscedata.omie.siom.query.execution.form</field>
+            <field name="model">giscedata.omie.siom.query.execution</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Intento de consulta SIOM">
+                    <field name="consulta"/>
+                    <field name="usuario_id"/>
+                    <field name="fecha_intento"/>
+                    <field name="estado"/>
+                    <field name="configurada" widget="switch"/>
+                    <field name="limite_ms"/>
+                    <field name="fecha_fin"/>
+                    <field name="detalle"/>
+                </form>
+            </field>
+        </record>
+        <record id="action_siom_query_execution" model="ir.actions.act_window">
+            <field name="name">Registro de consultas SIOM</field>
+            <field name="res_model">giscedata.omie.siom.query.execution</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+        <menuitem id="menu_siom_query_execution" parent="menu_omie_siom_limits"
+                            name="Registro de consultas SIOM" sequence="30"
+                            action="action_siom_query_execution" groups="group_giscedata_omie_oferta_u"/>
+    </data>
+</openerp>

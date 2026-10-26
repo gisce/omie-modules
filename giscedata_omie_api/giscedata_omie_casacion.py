@@ -57,6 +57,7 @@ class GiscedataOmieCasacion(osv.osv):
         if context is None:
             context = {}
 
+        control = self.pool.get('giscedata.omie.siom.query.execution')
         oferta_obj = self.pool.get('giscedata.omie.oferta')
         hora_obj = self.pool.get('giscedata.omie.casacion.hora')
 
@@ -80,7 +81,11 @@ class GiscedataOmieCasacion(osv.osv):
 
             try:
                 # Get casation for session throuhg OMIE API
-                res_casacion_zeep = client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=casacion_dict)
+                # Reserva durable del intento en otra transaccion PostgreSQL, antes de contactar con OMIE.
+                res_casacion_zeep = control.ejecutar_consulta(
+                    cursor, uid, casacion_dict['CodConsulta'],
+                    lambda: client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=casacion_dict),
+                    context=context)
 
             except Exception as e:
                 cron_wst.log(logging.ERROR, msg="No s'ha pogut obtenir la cassació des d'OMIE.", status='Failed')
@@ -261,6 +266,8 @@ class GiscedataOmieCasacionContinua(osv.osv):
         if context is None:
             context = {}
 
+        control = self.pool.get('giscedata.omie.siom.query.execution')
+
         with WebServiceTracker(uid=uid, obj='giscedata.omie.casacion.continua',
                                method='get_phfc_casation', logger_name='openerp.omie') as cron_wst:
 
@@ -278,7 +285,10 @@ class GiscedataOmieCasacionContinua(osv.osv):
             client = ClientOMIE()
 
             try:
-                res = client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=casacion_dict)
+                res = control.ejecutar_consulta(
+                    cursor, uid, casacion_dict['CodConsulta'],
+                    lambda: client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=casacion_dict),
+                    context=context)
             except Exception as e:
                 cron_wst.log(logging.ERROR, msg="No s'ha pogut obtenir la cassació.", status='Failed')
                 raise osv.except_osv('Error:', e)
@@ -363,6 +373,8 @@ class GiscedataOmieProgramaBaseCasacion(osv.osv):
         if context is None:
             context = {}
 
+        control = self.pool.get('giscedata.omie.siom.query.execution')
+
         with WebServiceTracker(uid=uid, obj='giscedata.omie.casacion.continua',
                                method='get_pbc_casation', logger_name='openerp.omie') as cron_wst:
 
@@ -380,7 +392,10 @@ class GiscedataOmieProgramaBaseCasacion(osv.osv):
             client = ClientOMIE()
 
             try:
-                res = client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=casacion_dict)
+                res = control.ejecutar_consulta(
+                    cursor, uid, casacion_dict['CodConsulta'],
+                    lambda: client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=casacion_dict),
+                    context=context)
             except Exception as e:
                 cron_wst.log(logging.ERROR, msg="No s'ha pogut obtenir el programa de cassació.", status='Failed')
                 raise osv.except_osv('Error:', e)

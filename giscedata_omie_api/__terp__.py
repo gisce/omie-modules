@@ -19,6 +19,7 @@
     'security/giscedata_omie_oferta_security.xml',
     'giscedata_omie_siom_minimum_time_view.xml',
     'wizard/wizard_siom_minimum_time_view.xml',
+    'giscedata_omie_siom_query_execution_view.xml',
     'security/ir.model.access.csv',
   ],
   "active": False,
