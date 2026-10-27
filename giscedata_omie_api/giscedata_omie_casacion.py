@@ -57,6 +57,7 @@ class GiscedataOmieCasacion(osv.osv):
         if context is None:
             context = {}
 
+        control = self.pool.get('giscedata.omie.siom.query.execution')
         oferta_obj = self.pool.get('giscedata.omie.oferta')
         hora_obj = self.pool.get('giscedata.omie.casacion.hora')
 
@@ -80,7 +81,11 @@ class GiscedataOmieCasacion(osv.osv):
 
             try:
                 # Get casation for session throuhg OMIE API
-                res_casacion_zeep = client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=casacion_dict)
+                # Reserva durable del intento en otra transaccion PostgreSQL, antes de contactar con OMIE.
+                res_casacion_zeep = control.ejecutar_consulta(
+                    cursor, uid, casacion_dict['CodConsulta'],
+                    lambda: client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=casacion_dict),
+                    context=context)
 
             except Exception as e:
                 cron_wst.log(logging.ERROR, msg="No s'ha pogut obtenir la cassació des d'OMIE.", status='Failed')
@@ -192,16 +197,16 @@ class GiscedataOmieCasacion(osv.osv):
     _columns = {
         'name': fields.char('Descripción', size=32, required=True),
         'tipo_mercado': fields.selection(
-            TIPO_MERCADO, "Tipo de Mercado", help="MD: Mercado Diario, MI: Mercado Intradiario",
+            TIPO_MERCADO, "Tipo de Mercado", help=_("MD: Mercado Diario, MI: Mercado Intradiario"),
             required=True, readonly=True, select=1
         ),
         'num_sesion': fields.selection(TIPO_NUM_SESION, "Sesión MI", readonly=True, select=1,
-                                       help="""
-                                            Indica el número de sesión de Mercado Intradiario Europeo (Intraday Auction)\n
-                                            * IDA1: Abierto a las 14:00 del día D+1\n
-                                            * IDA2: Abierto a las 21:00 del día D+1\n
-                                            * IDA3: Abierto a las 09:00 del día D\n
-                                            """),
+                                       help=_("""
+                                              Indica el número de sesión de Mercado Intradiario Europeo (Intraday Auction)\n
+                                              * IDA1: Abierto a las 14:00 del día D+1\n
+                                              * IDA2: Abierto a las 21:00 del día D+1\n
+                                              * IDA3: Abierto a las 09:00 del día D\n
+                                              """)),
         'fecha_sesion': fields.date("Fecha Sesión", select=1, help=_("Fecha del día a ofertar"),
                                     required=True, readonly=True),
         'clase_oferta': fields.selection(CLASE_OFERTA, "Clase de Oferta", select=1, help=_("C: Compra, V: Venta"),
@@ -211,8 +216,8 @@ class GiscedataOmieCasacion(osv.osv):
                                     readonly=True),
         'uni_medida': fields.selection(UNIDAD_MEDIDA, 'Unidad de Medida',
                                        readonly=True,
-                                       help="Determina si la medida de la oferta es de Energía o de Potencia."),
-        'id_unidad': fields.char("ID Unidad", size=16, help="Código de unidad ofertante o física.",
+                                       help=_("Determina si la medida de la oferta es de Energía o de Potencia.")),
+        'id_unidad': fields.char("ID Unidad", size=16, help=_("Código de unidad ofertante o física."),
                                  select=1, required=True, readonly=True),
         'total_energia': fields.function(_get_total_energia, method=True, type="float", string="Medida total",
                                          readonly=True)
@@ -261,6 +266,8 @@ class GiscedataOmieCasacionContinua(osv.osv):
         if context is None:
             context = {}
 
+        control = self.pool.get('giscedata.omie.siom.query.execution')
+
         with WebServiceTracker(uid=uid, obj='giscedata.omie.casacion.continua',
                                method='get_phfc_casation', logger_name='openerp.omie') as cron_wst:
 
@@ -278,7 +285,10 @@ class GiscedataOmieCasacionContinua(osv.osv):
             client = ClientOMIE()
 
             try:
-                res = client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=casacion_dict)
+                res = control.ejecutar_consulta(
+                    cursor, uid, casacion_dict['CodConsulta'],
+                    lambda: client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=casacion_dict),
+                    context=context)
             except Exception as e:
                 cron_wst.log(logging.ERROR, msg="No s'ha pogut obtenir la cassació.", status='Failed')
                 raise osv.except_osv('Error:', e)
@@ -363,6 +373,8 @@ class GiscedataOmieProgramaBaseCasacion(osv.osv):
         if context is None:
             context = {}
 
+        control = self.pool.get('giscedata.omie.siom.query.execution')
+
         with WebServiceTracker(uid=uid, obj='giscedata.omie.casacion.continua',
                                method='get_pbc_casation', logger_name='openerp.omie') as cron_wst:
 
@@ -380,7 +392,10 @@ class GiscedataOmieProgramaBaseCasacion(osv.osv):
             client = ClientOMIE()
 
             try:
-                res = client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=casacion_dict)
+                res = control.ejecutar_consulta(
+                    cursor, uid, casacion_dict['CodConsulta'],
+                    lambda: client.ServicioEjecucionConsultaEncolumnada(MensajeEjecucionConsulta=casacion_dict),
+                    context=context)
             except Exception as e:
                 cron_wst.log(logging.ERROR, msg="No s'ha pogut obtenir el programa de cassació.", status='Failed')
                 raise osv.except_osv('Error:', e)

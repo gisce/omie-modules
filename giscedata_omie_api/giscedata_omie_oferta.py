@@ -1,209 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
+from giscedata_omie_api.utils import (AREA_UNIDAD_SELECTION, TIPO_UNIDAD_SELECTION, TIPO_MERCADO, TIPO_NUM_SESION,
+                                      SI_NO, CLASE_OFERTA, UNIDAD_ENERGIA, UNIDAD_POTENCIA, UNIDAD_MONETARIA,
+                                      UNIDAD_PRECIOS, UNIDAD_MEDIDA, PERIODO_DIA, ESTADO_OFERTA, TIPO_NECESIDAD)
 from osv import osv, fields
 from omie import ClientOMIE
 from datetime import datetime
 from zeep import helpers
-
-AREA_UNIDAD_SELECTION = [
-    ('1', 'España'),
-    ('2', 'Portugal'),
-    ('3', 'Europa - Interconex Francia'),
-    ('4', 'Andorra'),
-    ('5', 'Africa - Interconex Marruecos'),
-]
-
-TIPO_UNIDAD_SELECTION = [
-    ('UO', 'Unidad Ofertante'),
-    ('UF', 'Unidad Física'),
-    ('RE', 'Régimen Especial'),
-    ('CP', 'Unidad de Contratación a Plazo'),
-    ('UP', 'Unidad de programación'),
-]
-
-TIPO_MERCADO = [
-    ('MD', 'Mercado Diario'),
-    ('MI', 'Mercado Intradiario'),
-]
-
-TIPO_NUM_SESION = [
-    ('1', 'Sesión IDA1'),
-    ('2', 'Sesión IDA2'),
-    ('3', 'Sesión IDA3')
-]
-
-SI_NO = [
-    ('S', 'Si'),
-    ('N', 'No'),
-]
-
-CLASE_OFERTA = [
-    ('C', 'Compra'),
-    ('V', 'Venta'),
-]
-
-UNIDAD_ENERGIA = [
-    ('MWh', 'MWh'),
-    ('kWh', 'kWh'),
-]
-
-UNIDAD_POTENCIA = [
-    ('MW', 'MW'),
-    ('kW', 'kW'),
-]
-
-UNIDAD_MONETARIA = [
-    ('cEURO', 'cEURO'),
-    ('EURO', 'EURO'),
-]
-
-UNIDAD_PRECIOS = [
-    ('cEURO/kWh', 'cEURO/kWh'),
-    ('cEURO/MWh', 'cEURO/MWh'),
-    ('EURO/MWh', 'EURO/MWh'),
-]
-
-UNIDAD_MEDIDA = [
-    ('E', 'Energía'),
-    ('P', 'Potencia'),
-]
-
-PERIODO_DIA = [
-    ('1', '1'),
-    ('2', '2'),
-    ('3', '3'),
-    ('4', '4'),
-    ('5', '5'),
-    ('6', '6'),
-    ('7', '7'),
-    ('8', '8'),
-    ('9', '9'),
-    ('10', '10'),
-    ('11', '11'),
-    ('12', '12'),
-    ('13', '13'),
-    ('14', '14'),
-    ('15', '15'),
-    ('16', '16'),
-    ('17', '17'),
-    ('18', '18'),
-    ('19', '19'),
-    ('20', '20'),
-    ('21', '21'),
-    ('22', '22'),
-    ('23', '23'),
-    ('24', '24'),
-    ('25', '25'),
-    ('26', '26'),
-    ('27', '27'),
-    ('28', '28'),
-    ('29', '29'),
-    ('30', '30'),
-    ('31', '31'),
-    ('32', '32'),
-    ('33', '33'),
-    ('34', '34'),
-    ('35', '35'),
-    ('36', '36'),
-    ('37', '37'),
-    ('38', '38'),
-    ('39', '39'),
-    ('40', '40'),
-    ('41', '41'),
-    ('42', '42'),
-    ('43', '43'),
-    ('44', '44'),
-    ('45', '45'),
-    ('46', '46'),
-    ('47', '47'),
-    ('48', '48'),
-    ('49', '49'),
-    ('50', '50'),
-    ('51', '51'),
-    ('52', '52'),
-    ('53', '53'),
-    ('54', '54'),
-    ('55', '55'),
-    ('56', '56'),
-    ('57', '57'),
-    ('58', '58'),
-    ('59', '59'),
-    ('60', '60'),
-    ('61', '61'),
-    ('62', '62'),
-    ('63', '63'),
-    ('64', '64'),
-    ('65', '65'),
-    ('66', '66'),
-    ('67', '67'),
-    ('68', '68'),
-    ('69', '69'),
-    ('70', '70'),
-    ('71', '71'),
-    ('72', '72'),
-    ('73', '73'),
-    ('74', '74'),
-    ('75', '75'),
-    ('76', '76'),
-    ('77', '77'),
-    ('78', '78'),
-    ('79', '79'),
-    ('80', '80'),
-    ('81', '81'),
-    ('82', '82'),
-    ('83', '83'),
-    ('84', '84'),
-    ('85', '85'),
-    ('86', '86'),
-    ('87', '87'),
-    ('88', '88'),
-    ('89', '89'),
-    ('90', '90'),
-    ('91', '91'),
-    ('92', '92'),
-    ('93', '93'),
-    ('94', '94'),
-    ('95', '95'),
-    ('96', '96'),
-    ('97', '97'),
-    ('98', '98'),
-    ('99', '99'),
-    ('100', '100'),
-]
-
-ESTADO_OFERTA = [
-    ('no_enviada', 'No Enviada'),
-    ('enviada', 'Enviada'),
-    ('enviada_error', 'Enviada Con Errores'),
-    ('casacion', 'Generada para descargar la casación')
-]
-
-TIPO_NECESIDAD = [
-    ('10', '10: Adq. de distribuidor >10%'),
-    ('20', '20: Adq. de distribuidor >10%'),
-    ('30', '30: Venta de distribuidor < 10%'),
-    ('40', '40: Venta de distribuidor > 10%'),
-    ('50', '50: Adq. de comercializador'),
-    ('60', '60: Adq. de consumidor Cualif.'),
-    ('61', '61: Adq. de consumidor directo'),
-    ('70', '70: Venta de comercializador'),
-    ('80', '80: Venta de consumidor Cualif.'),
-    ('81', '81: Venta de consumidor directo'),
-    ('90', '90: Venta de unidad de bombeo'),
-    ('101', '101: Compra por indisponibilidad'),
-    ('102', '102: Compra por pruebas'),
-    ('103', '103: Compra por infactibilidad'),
-    ('111', '111: Venta por probabil. de vertido'),
-    ('112', '112: Venta por pruebas'),
-    ('113', '113: Venta por infactibilidad'),
-    ('120', '120: Oferta de venta libre'),
-    ('130', '130: Oferta de compra libre'),
-    ('140', '140: Adq. CUR > 10%'),
-    ('141', '141: Adq. CUR < 10%'),
-    ('142', '142: Venta CUR > 10%'),
-    ('143', '143: Venta CUR < 10%'),
-
-]
+from tools.translate import _
 
 
 class GiscedataOmieOferta(osv.osv):
@@ -217,6 +21,7 @@ class GiscedataOmieOferta(osv.osv):
     def create(self, cursor, uid, vals, context=None):
         if context is None:
             context = {}
+
         hora_obj = self.pool.get('giscedata.omie.oferta.hora')
 
         oferta_id = super(osv.osv, self).create(cursor, uid, vals, context=context)
@@ -224,7 +29,9 @@ class GiscedataOmieOferta(osv.osv):
             'id_mensaje': oferta_id,
             'id_oferta': 'OF' + str(oferta_id)
         }
+
         self.write(cursor, uid, [oferta_id], write_vals, context=context)
+
         if not context.get('no_crear_horas', True):
             hora_ids = []
             rang = 26
@@ -240,6 +47,7 @@ class GiscedataOmieOferta(osv.osv):
                 }
                 hora_id = hora_obj.create(cursor, uid, create_vals, context=context)
                 hora_ids.append(hora_id)
+
         return oferta_id
 
     def _get_origen_selection(self, cursor, uid, context=None):
@@ -250,84 +58,92 @@ class GiscedataOmieOferta(osv.osv):
     _columns = {
         'id_mensaje': fields.char(
             "ID Mensaje", size=64,
-            help="Código que identifica un elemento de forma única dentro del documento.", readonly=True
+            help=_("Código que identifica un elemento de forma única dentro del documento."), readonly=True
         ),
         'ver_mensaje': fields.integer(
-            "Número Versión Mensaje", help="Número de versión de un mensaje", required=False
+            "Número Versión Mensaje", help=_("Número de versión de un mensaje"), required=False
         ),
         'fecha_mensaje': fields.date(
             "Fecha Mensaje",
-            help="Fecha y hora de generación de los datos para el mensaje (no de envío del mensaje en sí)",
+            help=_("Fecha y hora de generación de los datos para el mensaje (no de envío del mensaje en sí)"),
             required=False, readonly=True
         ),
         'id_remitente': fields.char(
             "ID Remitente", size=16,
-            help="Tipo que identifica un remitente, como código de agente, código EIC, etc", required=True
+            help=_("Tipo que identifica un remitente, como código de agente, código EIC, etc"), required=True
         ),
         # Oferta
         'id_oferta': fields.char(
             "ID Oferta", size=16,
-            help="Identificativo de la oferta dentro del fichero, definido por quien "
-                 "envía el fichero (único por mensaje)", readonly=True
+            help=_("Identificativo de la oferta dentro del fichero, "
+                   "definido por quien  envía el fichero (único por mensaje)"), readonly=True
         ),
         # Unidad
         # v
         'id_unidad': fields.char(
-            "ID Unidad", size=16, help="Código de unidad ofertante o física.", required=True
+            "ID Unidad", size=16, help=_("Código de unidad ofertante o física."), required=True
         ),
         'cod_min_unidad': fields.char(
-            "Código del Ministerio", size=50, help="Código del Ministerio", required=False
+            "Código del Ministerio", size=50, help=_("Código del Ministerio"), required=False
         ),
         'area_unidad': fields.selection(
             AREA_UNIDAD_SELECTION, "Área de Unidad",
-            help="1: España, 2: Portugal, 3: Europa - Interconex Francia, 4: Andorra, 5: Africa - Interconex Marruecos",
+            help=_("1: España, "
+                   "2: Portugal, "
+                   "3: Europa - Interconex Francia, "
+                   "4: Andorra, "
+                   "5: Africa - Interconex Marruecos"),
             required=True
         ),
         'tipo_unidad': fields.selection(
             TIPO_UNIDAD_SELECTION, "Tipo de Unidad",
-            help="UO: Unidad Ofertante, UF: Unidad Física, RE: Régimen Especial, "
-                 "CP: Unidad de Contratación a Plazo, UP: Unidad de programación",
+            help=_("UO: Unidad Ofertante, UF: Unidad Física, RE: Régimen Especial, "
+                 "CP: Unidad de Contratación a Plazo, UP: Unidad de programación"),
             required=True
         ),
         # Validez
         'tipo_mercado': fields.selection(
-            TIPO_MERCADO, "Tipo de Mercado", help="MD: Mercado Diario, MI: Mercado Intradiario", required=True
+            TIPO_MERCADO, "Tipo de Mercado", help=_("MD: Mercado Diario, MI: Mercado Intradiario"), required=True
         ),
         'num_sesion': fields.selection(TIPO_NUM_SESION,"Sesión MI",
-                                       help="""
+                                       help=_("""
                                             Indica el número de sesión de Mercado Intradiario Europeo (Intraday Auction)\n
                                             * IDA1: Abierto a las 14:00 del día D+1\n
                                             * IDA2: Abierto a las 21:00 del día D+1\n
                                             * IDA3: Abierto a las 09:00 del día D\n
-                                            """),
+                                            """)
+                                       ),
         'valida': fields.boolean(
-            'Valida', readonly=True, help="La oferta será valida si no ha sido sustituida y se ha enviado procesado "
-                                          "y aceptado por parte de OMIE."
+            'Valida', readonly=True,
+            help=_("La oferta será valida si no ha sido sustituida y "
+                   "se ha enviado procesado y aceptado por parte de OMIE.")
         ),
         'sustituida': fields.boolean(
-            'Sustituida', readonly=True, help="La oferta será sustituida cuando se haya mandado una oferta con el "
-                                              "mismo código de oferta y una versión superior. Si la oferta no se "
-                                              "procesa o se acepta, por parte de OMIE, también será marcada como "
-                                              "sustituida."
+            'Sustituida', readonly=True,
+            help=_("La oferta será sustituida cuando se haya mandado una oferta con el "
+                   "mismo código de oferta y una versión superior. Si la oferta no se "
+                   "procesa o se acepta, por parte de OMIE, también será marcada como "
+                   "sustituida.")
         ),
         # Sesion
         'fecha_sesion': fields.date(
-            "Fecha Sesión", help="Fecha del día que queremos ofertar", required=True
+            "Fecha Sesión", help=_("Fecha del día que queremos ofertar"), required=True
         ),
         'ind_defecto': fields.selection(
             SI_NO, "Oferta por Defecto",
-            help="Indica si la Oferta es por Defecto o Normal. "
-                 "('S' o 'Y' indican que la oferta es por defecto. 'N' indica que es normal",
+            help=_("Indica si la Oferta es por Defecto o Normal. "
+                 "('S' o 'Y' indican que la oferta es por defecto. 'N' indica que es normal"),
             required=True
         ),
         #'tipo_casacion' SIEMPRE VALE 1
-        'clase_oferta': fields.selection(CLASE_OFERTA, "Clase de Oferta", help="C: Compra, V: Venta", required=True),
+        'clase_oferta': fields.selection(CLASE_OFERTA, "Clase de Oferta",
+                                         help=_("C: Compra, V: Venta"), required=True),
         # CondTec
         #Gradiente
-        'grad_parada': fields.float("Gradiente de Parada", digits=(6, 1), help="Gradiente de Parada"),
-        'grad_arranque': fields.float("Gradiente de Arranque", digits=(6, 1), help="Gradiente de Arranque"),
-        'grad_bajada': fields.float("Gradiente de Bajada", digits=(6, 1), help="Gradiente de Bajada"),
-        'grad_subida': fields.float("Gradiente de Subida", digits=(6, 1), help="Gradiente de Subida"),
+        'grad_parada': fields.float("Gradiente de Parada", digits=(6, 1), help=_("Gradiente de Parada")),
+        'grad_arranque': fields.float("Gradiente de Arranque", digits=(6, 1), help=_("Gradiente de Arranque")),
+        'grad_bajada': fields.float("Gradiente de Bajada", digits=(6, 1), help=_("Gradiente de Bajada")),
+        'grad_subida': fields.float("Gradiente de Subida", digits=(6, 1), help=_("Gradiente de Subida")),
         'uni_energia': fields.selection(UNIDAD_ENERGIA, "Unidad de Energía", help="MWh/kWh"),
         'uni_potencia': fields.selection(UNIDAD_POTENCIA, "Unidad de Potencia", help="MW/kW"),
         'uni_monetaria': fields.selection(UNIDAD_MONETARIA, "Unidad Monetaria", help="cEURO/EURO"),
@@ -336,11 +152,11 @@ class GiscedataOmieOferta(osv.osv):
         ),
         'uni_medida': fields.selection(
             UNIDAD_MEDIDA, 'Unidad de Medida',
-            help="Determina si la medida de la oferta es de Energía o de Potencia.",
+            help=_("Determina si la medida de la oferta es de Energía o de Potencia."),
         ),
         #'uni_gradiente' SIEMPRE VALE 'MW/Min'
         'comentario_oferta': fields.char(
-            "Comentario de la Oferta", size=30, help="Comentario de la oferta", required=False
+            "Comentario de la Oferta", size=30, help=_("Comentario de la oferta"), required=False
         ),
         'state': fields.selection(
             ESTADO_OFERTA, 'Estado Envio',
@@ -348,34 +164,34 @@ class GiscedataOmieOferta(osv.osv):
         ),
         # RESPUESTA
         'id_mensaje_respuesta': fields.char(
-            'Mensaje Petición', help="Identificación del mensaje (libre para el creador del mensaje)", size=64,
+            'Mensaje Petición', help=_("Identificación del mensaje (libre para el creador del mensaje)"), size=64,
             readonly=True),
         'fecha_mensaje_respuesta': fields.char(
             "Fecha Petición", size=32,
-            help="Fecha y hora de generación de los datos para el mensaje (no de envío del mensaje en sí)",
+            help=_("Fecha y hora de generación de los datos para el mensaje (no de envío del mensaje en sí)"),
             readonly=True
         ),
         'id_remitente_respuesta': fields.char(
             "ID Remitente", size=16,
-            help="Código del Agente que envía la respuesta (OMEL)", readonly=True
+            help=_("Código del Agente que envía la respuesta (OMEL)"), readonly=True
         ),
         'id_remitente_origen': fields.char(
             'ID Remitente Origen', size=16,
-            help="Código del Agente que envió el mensaje", readonly=True
+            help=_("Código del Agente que envió el mensaje"), readonly=True
         ),
         # Respuesta
         'codigo_respuesta': fields.char(
-            'Código Respuesta', size=16, help="Código de la respuesta", readonly=True
+            'Código Respuesta', size=16, help=_("Código de la respuesta"), readonly=True
         ),
         'texto_respuesta': fields.text(
-            'Texto Respuesta', help="Textos descriptivos de la respuesta", readonly=True
+            'Texto Respuesta', help=_("Textos descriptivos de la respuesta"), readonly=True
         ),
         # ResumenOfertas
         'num_ofertas_procesadas': fields.char(
-            'Núm. Ofertas Procesadas', size=16, help="Número total de ofertas procesadas", readonly=True
+            'Núm. Ofertas Procesadas', size=16, help=_("Número total de ofertas procesadas"), readonly=True
         ),
         'num_ofertas_correctas': fields.char(
-            'Núm. Ofertas Correctas', size=16, help="Número total de ofertas correctas", readonly=True
+            'Núm. Ofertas Correctas', size=16, help=_("Número total de ofertas correctas"), readonly=True
         ),
         'origen': fields.reference('Origen', selection=_get_origen_selection, size=128),
         'qh_oferta': fields.boolean('Oferta Cuarto-Horaria', readonly=True),
@@ -418,9 +234,9 @@ class GiscedataOmieOfertaHora(osv.osv):
         'ret': fields.selection(SI_NO, "Es retirable", required=True),
         'per': fields.selection(
             PERIODO_DIA, "Periodo horario del día",
-            help="Seleccionar el periodo del día para el que quiere hacer la oferta", required=True),
+            help=_("Seleccionar el periodo del día para el que quiere hacer la oferta"), required=True),
         'desc': fields.char('Descripción', size=16, readonly=True),
-        'ctn': fields.float("Energía de la Oferta", digits=(8, 3), help="Energía de la oferta, sin signo"),
+        'ctn': fields.float("Energía de la Oferta", digits=(8, 3), help=("Energía de la oferta, sin signo")),
         'prc': fields.float("Precio de la Oferta", digits=(8, 3)),
         'oferta_id': fields.many2one('giscedata.omie.oferta', 'ID Oferta', ondelete='cascade'),
     }
@@ -631,6 +447,17 @@ class GiscedataOmieOfertaExtend(osv.osv):
             context = {}
 
         oferta_obj = self.pool.get('giscedata.omie.oferta')
+        servicio = self.pool.get('giscedata.omie.siom.service.execution')
+
+        # Advisory lock DISTINTO al carril SOAP de service.execution.
+        # Pertenece a la transaccion de negocio y dura hasta su commit/rollback.
+        # Se adquiere ANTES de leer versiones o construir el mensaje SOAP.
+        # Global para MD/MI: conservador y compatible con la busqueda legacy
+        # de versiones (que no separa todos los numeros de sesion MI).
+        cursor.execute(
+            'SELECT pg_advisory_xact_lock(hashtext(%s), %s)',
+            ('giscedata_omie_api.siom.versiones', 2)
+        )
 
         for oferta_id in ids:
             tipo_mercado = self.read(cursor, uid, oferta_id, ['tipo_mercado'])['tipo_mercado']
@@ -638,6 +465,7 @@ class GiscedataOmieOfertaExtend(osv.osv):
                 oferta_dicc = oferta_obj.mensaje_oferta_md_dicc(cursor, uid, oferta_id, context=context)
             else:
                 oferta_dicc = oferta_obj.mensaje_oferta_mi_dicc(cursor, uid, oferta_id, context=context)
+            oferta_dicc['VerMensaje'] = int(oferta_dicc.get('VerMensaje') or 1)
             # Buscamos las ofertas enviadas anteriormente
             search_vals = [
                 ('tipo_mercado', '=', oferta_dicc.get('Oferta').get('Validez').get('TipoMercado')),
@@ -652,21 +480,66 @@ class GiscedataOmieOfertaExtend(osv.osv):
             if oferta_ids:
                 # Cogemos la versión mas grande de las ofertas encontradas
                 version_oferta = oferta_obj.read(cursor, uid, oferta_ids, ['ver_mensaje'], context=context)
-                max_version = max(int(oferta['ver_mensaje']) for oferta in version_oferta)
+                max_version = max(int(oferta['ver_mensaje'] or 1) for oferta in version_oferta)
                 oferta_dicc['VerMensaje'] = max_version + 1
 
                 # Incrementamos número de oferta de MI, para que no se sustituyan por error
                 if tipo_mercado == 'MI':
                     oferta_dicc['Oferta']['NumOferta'] = len(oferta_ids) + 1
 
+            sesion = oferta_dicc['Oferta']['Validez']['Sesion']
+            ultima_version, ultimo_num = servicio.ultimos_identificadores(
+                cursor, tipo_mercado, oferta_dicc['IdRemitente'],
+                sesion['fecha'], oferta_dicc['Oferta']['IdUnidad']['v'],
+                sesion.get('num'))
+            # El maximo de la auditoria NO depende del snapshot del ORM.
+            # Una version ya enviada (aunque luego hubiera rollback ERP)
+            # nunca se debe reutilizar. El carril SOAP decidira si procede
+            # bloquear por respuesta pendiente o resultado incierto.
+            if ultima_version is not None:
+                oferta_dicc['VerMensaje'] = max(
+                    int(oferta_dicc['VerMensaje']), int(ultima_version) + 1)
+            if tipo_mercado == 'MI' and ultimo_num is not None:
+                oferta_dicc['Oferta']['NumOferta'] = max(
+                    int(oferta_dicc['Oferta'].get('NumOferta') or 1),
+                    int(ultimo_num) + 1)
+
+            # Guardaremos esta version dentro de la transaccion ERP. Si falla
+            # tras el SOAP, quedara la evidencia durable en service.execution.
+            metadatos = {
+                'id_mensaje': oferta_dicc.get('IdMensaje'),
+                'version': oferta_dicc.get('VerMensaje'),
+                'num_oferta': oferta_dicc['Oferta'].get('NumOferta'),
+                'id_remitente': oferta_dicc['IdRemitente'],
+                'fecha_sesion': oferta_dicc['Oferta']['Validez']['Sesion']['fecha'],
+                'id_unidad': oferta_dicc['Oferta']['IdUnidad']['v'],
+                'num_sesion': oferta_dicc['Oferta']['Validez']['Sesion'].get('num'),
+            }
             client = ClientOMIE()
+
             try:
+                # Carril unico MD/MI para todo el ERP, bloqueo transaccional
+                # corto en PostgreSQL y registro durable previo a SOAP.
+
                 if tipo_mercado == 'MD':
-                    res_oferta_zeep = client.ServicioAltaOfertasMD(MensajeOfertasMD=oferta_dicc)
+                    res_oferta_zeep = servicio.ejecutar_servicio(
+                        cursor, uid, 'ServicioAltaOfertasMD',
+                        lambda: client.ServicioAltaOfertasMD(MensajeOfertasMD=oferta_dicc),
+                        oferta_id=oferta_id, metadatos=metadatos,
+                        permitir_pendientes_propias=True
+                    )
                 else:
-                    res_oferta_zeep = client.ServicioAltaOfertasMI(MensajeOfertasMI=oferta_dicc)
+                    res_oferta_zeep = servicio.ejecutar_servicio(
+                        cursor, uid, 'ServicioAltaOfertasMI',
+                        lambda: client.ServicioAltaOfertasMI(MensajeOfertasMI=oferta_dicc),
+                        oferta_id=oferta_id, metadatos=metadatos,
+                        permitir_pendientes_propias=True
+                    )
+
                 res_oferta_dicc = helpers.serialize_object(res_oferta_zeep)
+
                 respuesta_dicc = self.crear_respuesta_oferta(cursor, uid, oferta_id, res_oferta_dicc, context=context)
+
                 if int(respuesta_dicc['num_ofertas_correctas']) == 0:
                     state = 'enviada_error'
                     valida = False
@@ -675,21 +548,58 @@ class GiscedataOmieOfertaExtend(osv.osv):
                     state = 'enviada'
                     valida = True
                     sustituida = False
+
                 # Añadir fecha_mensaje y cambiar estado en la oferta enviada
                 write_vals = {
                     'fecha_mensaje': datetime.today().strftime('%Y-%m-%d'),
                     'state': state,
+                    'ver_mensaje': oferta_dicc['VerMensaje'],
                     'valida': valida,
                     'sustituida': sustituida,
                 }
+
                 write_vals.update(respuesta_dicc)
+
                 oferta_obj.write(cursor, uid, [oferta_id], write_vals, context=context)
+
                 self.update_origen(cursor, uid, oferta_id, state, context=context)
+
                 if oferta_ids and valida:
                     # Marcamos como no válidas y sustituidas las ofertas enviadas anteriormente
                     oferta_obj.write(cursor, uid, oferta_ids, {'sustituida': True}, context=context)
+
             except Exception as e:
+                # Los automatismos necesitan distinguir una incidencia sin
+                # perder el error original al envolverlo en except_osv.
+                if context.get('_siom_automatismo'):
+                    raise
                 raise osv.except_osv('Error:', e)
+
+    def enviar_ofertas_automatismo(self, cursor, uid, ids, context=None):
+        """Procesa ofertas sincronicamente, sin propagar bloqueos conocidos.
+
+        Retorna un informe estructurado con asunto y texto de correo. No hace
+        commit ni envia email: el caller debe confirmar la transaccion antes
+        de notificar. Ante un resultado incierto deja las ofertas restantes
+        sin intentar y NO reintenta automaticamente ningun envio SIOM.
+        """
+        from giscedata_omie_api.siom_automatismos import ejecutar_lote
+        from giscedata_omie_api.giscedata_omie_siom_service_execution import EnvioOMIEPendiente
+        if context is None:
+            context = {}
+        contexto = dict(context)
+        contexto['_siom_automatismo'] = True
+
+        def enviar(oferta_id):
+            return self.enviar_oferta(cursor, uid, [oferta_id], context=contexto)
+
+        def leer_estado(oferta_id):
+            registro = self.read(cursor, uid, oferta_id, ['state'], context=context)
+            return registro.get('state') or ''
+
+        return ejecutar_lote(
+            cursor, ids, enviar, leer_estado,
+            es_bloqueo=lambda exc: isinstance(exc, EnvioOMIEPendiente))
 
     def _get_total_energia(self, cursor, uid, ids, field_name, arg, context=None):
         if context is None:

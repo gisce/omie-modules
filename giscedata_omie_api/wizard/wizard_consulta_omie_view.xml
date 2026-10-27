@@ -19,15 +19,20 @@
                     <group string="Parámetros" col="4" colspan="4" icon="adjustments">
                         <field name="uni_medida"/>
                     </group>
-                    <group attrs="{'invisible':[('state','!=','init')]}">
-				        <button icon="gtk-ok" name="consultar_en_omie" string="Consultar en OMIE" type="object"
-                                primary="1" colspan="2"/>
+                    <group col="10" attrs="{'invisible':[('state','!=','init')]}">
+                        <label colspan="6"/>
                         <button icon="gtk-cancel" special="cancel" string="Cancelar" type="object"
                                 danger="1" colspan="2"/>
+                        <button icon="gtk-ok" name="consultar_en_omie" string="Consultar en OMIE" type="object"
+                                primary="1" colspan="2"/>
                     </group>
                     <group attrs="{'invisible':[('state','=','init')]}">
                         <field name="info" colspan="4"/>
-                        <button special="cancel" string="Cerrar" icon="gtk-close" colspan="4"/>
+                        <group col="10">
+                            <label colspan="8"/>
+                            <button special="cancel" string="Cerrar" icon="gtk-close" colspan="2" primary="1"
+                                    danger="1"/>
+                        </group>
                     </group>
                 </form>
             </field>
