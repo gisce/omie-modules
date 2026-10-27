@@ -329,6 +329,39 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
             negocio.close()
             segundo.close()
 
+    def test_10d4_savepoint_preserva_envios_anteriores_tras_error(self):
+        # No comunica con OMIE. Comprueba la transaccion real que usaria
+        # un automatismo al capturar un error de una oferta individual.
+        from giscedata_omie_api.siom_automatismos import ejecutar_lote
+        negocio = PgCursor(psycopg2.connect(
+            DSN, options='-c search_path=%s' % self.schema))
+        enviadas = []
+        def enviar(oferta_id):
+            enviadas.append(oferta_id)
+            negocio.execute('INSERT INTO giscedata_omie_oferta '
+                '(id, ver_mensaje, id_mensaje_respuesta, state) '
+                "VALUES (%s, 1, 'RESPUESTA', 'enviada')", (oferta_id,))
+            if oferta_id == 2:
+                raise RuntimeError('Fallo posterior a la insercion local')
+        def estado(oferta_id):
+            negocio.execute('SELECT state FROM giscedata_omie_oferta WHERE id=%s',
+                            (oferta_id,))
+            return negocio.fetchone()[0]
+        try:
+            informe = ejecutar_lote(negocio, [1, 2, 3], enviar, estado)
+            self.assertEqual(enviadas, [1, 2])
+            self.assertEqual(informe['totales']['enviada'], 1)
+            self.assertEqual(informe['totales']['pendiente'], 1)
+            negocio.commit()  # Responsabilidad del caller, NUNCA del helper.
+        finally:
+            negocio.close()
+        cr = self.root.cursor()
+        cr.execute('SELECT id FROM %s.giscedata_omie_oferta ORDER BY id' %
+                   self.schema)
+        self.assertEqual(cr.fetchall(), [(1,)])
+        cr.close()
+
+
 
 
 class PgCursor(object):

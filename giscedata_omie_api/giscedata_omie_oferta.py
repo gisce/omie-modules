@@ -569,7 +569,37 @@ class GiscedataOmieOfertaExtend(osv.osv):
                     oferta_obj.write(cursor, uid, oferta_ids, {'sustituida': True}, context=context)
 
             except Exception as e:
+                # Los automatismos necesitan distinguir una incidencia sin
+                # perder el error original al envolverlo en except_osv.
+                if context.get('_siom_automatismo'):
+                    raise
                 raise osv.except_osv('Error:', e)
+
+    def enviar_ofertas_automatismo(self, cursor, uid, ids, context=None):
+        """Procesa ofertas sincronicamente, sin propagar bloqueos conocidos.
+
+        Retorna un informe estructurado con asunto y texto de correo. No hace
+        commit ni envia email: el caller debe confirmar la transaccion antes
+        de notificar. Ante un resultado incierto deja las ofertas restantes
+        sin intentar y NO reintenta automaticamente ningun envio SIOM.
+        """
+        from giscedata_omie_api.siom_automatismos import ejecutar_lote
+        from giscedata_omie_api.giscedata_omie_siom_service_execution import EnvioOMIEPendiente
+        if context is None:
+            context = {}
+        contexto = dict(context)
+        contexto['_siom_automatismo'] = True
+
+        def enviar(oferta_id):
+            return self.enviar_oferta(cursor, uid, [oferta_id], context=contexto)
+
+        def leer_estado(oferta_id):
+            registro = self.read(cursor, uid, oferta_id, ['state'], context=context)
+            return registro.get('state') or ''
+
+        return ejecutar_lote(
+            cursor, ids, enviar, leer_estado,
+            es_bloqueo=lambda exc: isinstance(exc, EnvioOMIEPendiente))
 
     def _get_total_energia(self, cursor, uid, ids, field_name, arg, context=None):
         if context is None:

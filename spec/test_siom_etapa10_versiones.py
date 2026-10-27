@@ -127,5 +127,34 @@ class OfertasVersionTests(unittest.TestCase):
         self.assertTrue(self.servicio.metadata[0][1]['permitir_pendientes_propias'])
 
 
+    def test_10d4_adapter_automatismo_envia_ids_individuales(self):
+        enviados = []
+        def enviar(cr, uid, ids, context=None):
+            enviados.append((list(ids), dict(context)))
+        def leer(cr, uid, id, fields, context=None):
+            return {'state': 'enviada' if id == 10 else 'enviada_error'}
+        self.model.enviar_oferta = enviar
+        self.model.read = leer
+        resultado = self.model.enviar_ofertas_automatismo(self.cr, 7, [10, 11])
+        self.assertEqual(enviados[0][0], [10])
+        self.assertEqual(enviados[1][0], [11])
+        self.assertTrue(enviados[0][1]['_siom_automatismo'])
+        self.assertEqual(resultado['totales']['enviada'], 1)
+        self.assertEqual(resultado['totales']['enviada_error'], 1)
+        self.assertEqual(self.cr.sql[0][0], 'SAVEPOINT siom_auto_0')
+
+    def test_10d4_adapter_bloqueo_no_provoca_nuevos_envios(self):
+        enviados = []
+        def enviar(cr, uid, ids, context=None):
+            enviados.append(ids[0])
+            raise RuntimeError('OMIE pendientes')
+        self.model.enviar_oferta = enviar
+        self.model.read = lambda *a, **kw: {'state': 'enviada'}
+        resultado = self.model.enviar_ofertas_automatismo(self.cr, 7, [10, 11])
+        self.assertEqual(enviados, [10])
+        self.assertEqual(resultado['resultado'], 'con_incidencias')
+        self.assertEqual(resultado['ofertas'][1]['estado'], 'pendiente')
+
+
 if __name__ == '__main__':
     unittest.main()
