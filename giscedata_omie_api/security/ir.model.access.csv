@@ -44,3 +44,7 @@
 "access_wizard_siom_minimum_time_update_u","wizard.siom.minimum.time.update","model_wizard_siom_minimum_time_update","group_giscedata_omie_oferta_u",1,1,1,1
 "access_giscedata_omie_siom_query_execution_u","giscedata.omie.siom.query.execution","model_giscedata_omie_siom_query_execution","group_giscedata_omie_oferta_u",1,0,0,0
 "access_giscedata_omie_siom_service_execution_u","giscedata.omie.siom.service.execution","model_giscedata_omie_siom_service_execution","group_giscedata_omie_oferta_u",1,0,0,0
+"access_giscedata_omie_siom_exclusion_observation_r","giscedata.omie.siom.exclusion.observation","model_giscedata_omie_siom_exclusion_observation","group_giscedata_omie_oferta_r",1,0,0,0
+"access_giscedata_omie_siom_exclusion_observation_w","giscedata.omie.siom.exclusion.observation","model_giscedata_omie_siom_exclusion_observation","group_giscedata_omie_oferta_w",1,0,0,0
+"access_giscedata_omie_siom_exclusion_observation_u","giscedata.omie.siom.exclusion.observation","model_giscedata_omie_siom_exclusion_observation","group_giscedata_omie_oferta_u",1,0,0,0
+"access_wizard_siom_exclusion_observation_u","wizard.siom.exclusion.observation","model_wizard_siom_exclusion_observation","group_giscedata_omie_oferta_u",1,1,1,1

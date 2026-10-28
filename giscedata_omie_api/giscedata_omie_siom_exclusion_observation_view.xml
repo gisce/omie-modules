@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+  <data>
+    <record id="view_siom_exclusion_observation_tree" model="ir.ui.view">
+      <field name="name">giscedata.omie.siom.exclusion.observation.tree</field>
+      <field name="model">giscedata.omie.siom.exclusion.observation</field>
+      <field name="type">tree</field>
+      <field name="arch" type="xml">
+        <tree string="Consultas 8100 (solo observaciones)">
+          <field name="fecha_consulta"/>
+          <field name="estado"/>
+          <field name="total_filas"/>
+          <field name="huella_sha256"/>
+        </tree>
+      </field>
+    </record>
+    <record id="view_siom_exclusion_observation_form" model="ir.ui.view">
+      <field name="name">giscedata.omie.siom.exclusion.observation.form</field>
+      <field name="model">giscedata.omie.siom.exclusion.observation</field>
+      <field name="type">form</field>
+      <field name="arch" type="xml">
+        <form string="Respuesta SIOM 8100 (no aplicada)">
+          <field name="fecha_consulta" readonly="1"/>
+          <field name="estado" readonly="1"/>
+          <field name="total_filas" readonly="1"/>
+          <field name="huella_sha256" readonly="1"/>
+          <field name="columnas_json" readonly="1" colspan="4"/>
+          <field name="muestras_json" readonly="1" colspan="4"/>
+          <field name="respuesta_json" readonly="1" colspan="4"/>
+        </form>
+      </field>
+    </record>
+    <record id="action_siom_exclusion_observation" model="ir.actions.act_window">
+      <field name="name">Observaciones 8100 (sin bloqueos)</field>
+      <field name="res_model">giscedata.omie.siom.exclusion.observation</field>
+      <field name="view_type">form</field>
+      <field name="view_mode">tree,form</field>
+    </record>
+    <menuitem id="menu_siom_exclusion_observation" parent="menu_omie_siom_limits"
+              action="action_siom_exclusion_observation" sequence="30"/>
+  </data>
+</openerp>

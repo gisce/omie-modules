@@ -263,21 +263,15 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
         finally:
             dbcr.close()
 
-    def diagnosticar_8100(self, cr, uid, context=None, client=None):
-        """Consulta 8100 sin guardar ventanas ni activar bloqueos preventivos.
-
-        Uso administrativo para confirmar la estructura ENCOL real en el
-        entorno del agente. La reserva y auditoria siguen pasando por 10A.
-        No realiza commit en la transaccion de negocio.
-        """
+    def _consultar_datos_8100(self, cr, uid, context=None, client=None):
+        """ENCOL 8100 via auditoría/cadencia; una única llamada, sin reintentos."""
         if uid != 1:
-            raise ValueError('Solo el administrador puede diagnosticar la 8100')
+            raise ValueError('Solo el administrador puede consultar la 8100')
         if context is None:
             context = {}
         if client is None:
             from omie import ClientOMIE
             client = ClientOMIE()
-
         solicitud = {'CodConsulta': '8100', 'Parametros': {'_value_1': []}}
         respuesta = self.ejecutar_consulta(
             cr, uid, 8100,
@@ -285,8 +279,14 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                 MensajeEjecucionConsulta=solicitud),
             context=context, reintentos=0)
         from zeep.helpers import serialize_object
+        return serialize_object(respuesta)
+
+    def diagnosticar_8100(self, cr, uid, context=None, client=None):
+        """Inspección sin escritura local ni bloqueos preventivos."""
+        datos = self._consultar_datos_8100(
+            cr, uid, context=context, client=client)
         from giscedata_omie_api.giscedata_omie_siom_exclusion_diagnostic import diagnosticar_respuesta_8100
-        return diagnosticar_respuesta_8100(serialize_object(respuesta))
+        return diagnosticar_respuesta_8100(datos)
 
     def ejecutar_consulta(self, cr, uid, codigo_consulta, llamada, context=None,
                           exigir_configuracion=False, reintentos=1,
