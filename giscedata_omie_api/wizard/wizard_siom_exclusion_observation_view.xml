@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+  <data>
+    <record id="view_wizard_siom_exclusion_observation_form" model="ir.ui.view">
+      <field name="name">wizard.siom.exclusion.observation.form</field>
+      <field name="model">wizard.siom.exclusion.observation</field>
+      <field name="type">form</field>
+      <field name="arch" type="xml">
+        <form string="Consultar OMIE 8100 (solo diagnóstico)">
+          <field name="state" invisible="1"/>
+          <group col="4" attrs="{'invisible': [('state', '!=', 'init')]}" >
+            <label string="Consulta 8100. Registra filas y estructura; NO activa períodos de exclusión." colspan="4"/>
+            <group col="10">
+              <label colspan="6"/>
+              <button special="cancel" string="Cancelar" colspan="2" icon="gtk-cancel" danger="1"/>
+              <button name="consultar_desde_omie" type="object" string="Consultar 8100" colspan="2" icon="gtk-refresh"
+                      primary="1"/>
+            </group>
+          </group>
+          <group col="4" attrs="{'invisible': [('state', '!=', 'end')]}" >
+            <field name="info" colspan="4" readonly="1"/>
+            <group col="10">
+              <label colspan="8"/>
+              <button special="cancel" string="Cerrar" icon="gtk-close" primary="1" danger="1" colspan="2"/>
+            </group>
+          </group>
+        </form>
+      </field>
+    </record>
+    <record id="action_wizard_siom_exclusion_observation" model="ir.actions.act_window">
+      <field name="name">Consultar 8100 (diagnóstico)</field>
+      <field name="res_model">wizard.siom.exclusion.observation</field>
+      <field name="view_type">form</field>
+      <field name="view_mode">form</field>
+      <field name="view_id" ref="view_wizard_siom_exclusion_observation_form"/>
+      <field name="target">new</field>
+    </record>
+    <menuitem id="menu_wizard_siom_exclusion_observation"
+              parent="menu_omie_siom_limits" action="action_wizard_siom_exclusion_observation"
+              groups="group_giscedata_omie_oferta_u" sequence="25"/>
+  </data>
+</openerp>

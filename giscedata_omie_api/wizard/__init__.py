@@ -6,3 +6,5 @@ from . import wizard_consulta_sesiones
 from . import wizard_consulta_datos_usuario
 from . import wizard_consulta_omie
 from . import wizard_siom_minimum_time
+
+from . import wizard_siom_exclusion_observation
