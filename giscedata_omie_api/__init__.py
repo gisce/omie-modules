@@ -6,5 +6,4 @@ from . import wizard
 from . import giscedata_omie_siom_minimum_time
 from . import giscedata_omie_siom_query_execution
 from . import giscedata_omie_siom_service_execution
-
 from . import giscedata_omie_siom_exclusion_observation

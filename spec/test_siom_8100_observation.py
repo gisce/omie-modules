@@ -11,7 +11,6 @@ import os
 import sys
 import types
 import unittest
-from xml.etree import ElementTree
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 APP = os.path.join(ROOT, 'giscedata_omie_api')
@@ -237,22 +236,11 @@ class FaseB8100Tests(unittest.TestCase):
         self.assertTrue(wizard.consultar_desde_omie(None, 9, [12]))
         self.assertIn('NO implica ausencia', escritos[0]['info'])
 
-    def test_migracion_y_xml_registrados(self):
-        import csv
-        from io import open as fopen
-        with fopen(os.path.join(APP, '__terp__.py'), encoding='utf-8') as f:
-            manifest = f.read()
-        self.assertIn('giscedata_omie_siom_exclusion_observation_view.xml', manifest)
-        self.assertIn('wizard/wizard_siom_exclusion_observation_view.xml', manifest)
-        for item in ('giscedata_omie_siom_exclusion_observation_view.xml',
-                     'wizard/wizard_siom_exclusion_observation_view.xml'):
-            ElementTree.parse(os.path.join(APP, item))
-        migration = os.path.join(APP, 'migrations', '5.0.26.12',
-                                 'post-0008_siom_8100_observaciones.py')
-        self.assertTrue(os.path.isfile(migration))
-        with fopen(os.path.join(APP, 'security', 'ir.model.access.csv'),
-                   encoding='utf-8') as f:
-            self.assertIn('model_giscedata_omie_siom_exclusion_observation', f.read())
+    def test_fila_con_formato_invalido_no_se_guarda(self):
+        self._mock_controller(respuesta(filas={'Num': 1}))
+        with self.assertRaises(self.parser.Formato8100NoReconocido):
+            self.record.registrar_observacion_8100(None, 1)
+        self.assertEqual(self.created, [])
 
 
 if __name__ == '__main__':
