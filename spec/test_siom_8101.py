@@ -10,12 +10,18 @@ import types
 import unittest
 from xml.etree import ElementTree
 
-from mock import Mock
+try:
+    from unittest.mock import Mock  # Python 3
+except ImportError:
+    from mock import Mock  # Python 2.7
 from types import ModuleType
 # Simulamos el módulo tools que proporciona GISCE-ERP.
 tools_mock = ModuleType('tools')
 tools_mock.config = Mock()
 sys.modules['tools'] = tools_mock
+translate_mock = ModuleType('tools.translate')
+translate_mock._ = lambda value: value
+sys.modules['tools.translate'] = translate_mock
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 APP = os.path.join(ROOT, 'giscedata_omie_api')

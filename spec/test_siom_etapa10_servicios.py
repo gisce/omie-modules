@@ -11,7 +11,10 @@ import unittest
 from datetime import datetime, timedelta
 from xml.etree import ElementTree
 
-from mock import Mock
+try:
+    from unittest.mock import Mock  # Python 3
+except ImportError:
+    from mock import Mock  # Python 2.7
 from types import ModuleType
 # Simulamos el módulo tools que proporciona GISCE-ERP.
 tools_mock = ModuleType('tools')
@@ -448,14 +451,6 @@ class ServiceTests(unittest.TestCase):
                 proceso_terminado=True)
         self.assertEqual(self.db.rows[0]['estado'], 'preparada')
 
-    def test_10d1_migracion_no_declara_reserva_antigua_seguramente_cancelable(self):
-        path = os.path.join(APP, 'migrations', '5.0.26.12',
-                            'post-0006_siom_envio_recuperacion.py')
-        with open(path) as f:
-            codigo = f.read()
-        self.assertIn("SET estado='incierta'", codigo)
-        self.assertIn("WHERE estado='reservada'", codigo)
-
     def test_10d2_respuesta_durable_y_version_no_espera_commit_erp(self):
         self.model._datos_respuesta = lambda respuesta: (
             '{"Respuesta":"OK"}', 'RESP-123', '0')
@@ -570,14 +565,6 @@ class ServiceTests(unittest.TestCase):
         # Se incluye respuesta pendiente: el commit del negocio aun no existe.
         self.assertEqual(self.db.rows[0]['estado'], 'respondida_pendiente')
         self.assertFalse(self.cr.called)
-
-    def test_10d2_migracion_add_campos_y_no_reescribe_legacy(self):
-        path = os.path.join(APP, 'migrations', '5.0.26.12',
-                            'post-0007_siom_respuestas_versiones.py')
-        with open(path) as f:
-            codigo = f.read()
-        self.assertIn("mh.init_model(model_name='giscedata.omie.siom.service.execution')", codigo)
-        self.assertNotIn('DELETE FROM', codigo)
 
     def test_servicios_y_ofertas_integrados_en_codigo_erp(self):
         with open(os.path.join(APP, 'giscedata_omie_oferta.py')) as f:

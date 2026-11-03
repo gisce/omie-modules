@@ -47,16 +47,15 @@ class WizardSiomMinimumTimeUpdate(osv.osv_memory):
 
         model = self.pool.get('giscedata.omie.siom.minimum.time')
 
-        wizard = self.simple_browse(cursor, uid, ids[0], context=context)
+        if not ids or len(ids) != 1:
+            raise osv.except_osv('Error', _('Seleccione un unico asistente.'))
 
         if not self._puede_actualizar(cursor, uid, context=context):
             raise osv.except_osv(
                 'Acceso denegado',
                 'Solo el grupo GISCEDATA Omie / Manager puede actualizar 8101.')
 
-        if not ids or len(ids) != 1:
-            raise osv.except_osv('Error', _('Seleccione un unico asistente.'))
-
+        wizard = self.simple_browse(cursor, uid, ids[0], context=context)
         if wizard.state != 'init':
             raise osv.except_osv('Error', _('Este asistente ya se ha ejecutado.'))
 

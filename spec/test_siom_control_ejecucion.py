@@ -67,7 +67,7 @@ class FakePgCursor(object):
         elif 'select fecha_intento' in text:
             candidates = [r for r in self.store.attempts if r['consulta'] == params[0]]
             candidates.sort(key=lambda r: (r['fecha_intento'], r['id']), reverse=True)
-            self.result = ((candidates[0]['fecha_intento'],),) if candidates else ()
+            self.result = ((candidates[0]['fecha_intento'], candidates[0]['estado']),) if candidates else ()
         elif text.startswith('insert into giscedata_omie_siom_query_execution'):
             codigo, uid, fecha, limite, configurada, detalle = params
             new_id = self.store.next_id
@@ -180,6 +180,16 @@ class ControlTests(unittest.TestCase):
         value = self.model.ejecutar_consulta(self.business, 7, 5222, check)
         self.assertEqual(value, 'respuesta')
         self.assertEqual(observed, [(1, 'reservada')])
+
+    def test_no_solapa_consulta_pendiente_ni_con_limite_cero(self):
+        self.db.limits[5222] = (0, 0)
+        with self.assertRaises(self.module.ConsultaSIOMPendiente):
+            self.model.ejecutar_consulta(self.business, 7, 5222,
+                lambda: self.model.ejecutar_consulta(
+                    self.business, 8, 5222,
+                    lambda: self.fail('SOAP solapado')))
+        self.assertEqual(len(self.db.attempts), 1)
+        self.assertEqual(self.db.attempts[0]['estado'], 'incierta')
 
     def test_estados_respuesta_recibida(self):
         self.db.limits[5222] = (10, 30)

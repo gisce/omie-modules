@@ -14,7 +14,10 @@ import types
 import unittest
 import uuid
 
-from mock import Mock
+try:
+    from unittest.mock import Mock  # Python 3
+except ImportError:
+    from mock import Mock  # Python 2.7
 from types import ModuleType
 # Simulamos el módulo tools que proporciona GISCE-ERP.
 tools_mock = ModuleType('tools')

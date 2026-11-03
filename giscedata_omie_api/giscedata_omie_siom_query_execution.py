@@ -20,6 +20,16 @@ from tools.translate import _
 _logger = logging.getLogger(__name__)
 
 
+def _fecha_pg_utc(valor):
+    """psycopg2 devuelve datetime para columnas timestamp; los tests pueden usar texto."""
+    if isinstance(valor, datetime):
+        return valor
+    try:
+        return datetime.strptime(valor, '%Y-%m-%d %H:%M:%S.%f')
+    except ValueError:
+        return datetime.strptime(valor, '%Y-%m-%d %H:%M:%S')
+
+
 class TiempoMinimoNoCumplido(Exception):
     """No se ha llamado a OMIE: aun no ha transcurrido el tiempo minimo."""
 
@@ -30,6 +40,10 @@ class TiempoMinimoNoCumplido(Exception):
         Exception.__init__(self, 'Consulta %s: esperar %.3f segundos (hasta %s UTC)' % (
             consulta, espera_segundos, disponible_en.strftime('%Y-%m-%d %H:%M:%S.%f')
         ))
+
+
+class ConsultaSIOMPendiente(Exception):
+    """La misma consulta todavia tiene una solicitud SOAP en curso."""
 
 
 class RechazoFrecuenciaOMIE(Exception):
@@ -161,16 +175,20 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
             else:
                 limite = 0  # No equivale a una afirmacion de OMIE: configurada=False.
             dbcr.execute("SELECT clock_timestamp() AT TIME ZONE 'UTC'")
-            ahora = datetime.strptime(dbcr.fetchone()[0], '%Y-%m-%d %H:%M:%S.%f')
+            ahora = _fecha_pg_utc(dbcr.fetchone()[0])
             dbcr.execute('''
-                SELECT fecha_intento
+                SELECT fecha_intento, estado
                   FROM giscedata_omie_siom_query_execution
                  WHERE consulta = %s
                  ORDER BY fecha_intento DESC, id DESC LIMIT 1
             ''', (codigo,))
             anterior = dbcr.fetchone()
+            if anterior and anterior[1] == 'reservada':
+                raise ConsultaSIOMPendiente(
+                    'La consulta SIOM %s tiene una solicitud sin respuesta; '
+                    'no se ha enviado otra peticion' % codigo)
             if anterior and configurada:
-                instante_previo = datetime.strptime(anterior[0], '%Y-%m-%d %H:%M:%S.%f')
+                instante_previo = _fecha_pg_utc(anterior[0])
                 # Margen operativo: reserva local anterior a la recepcion OMIE.
                 permitido = instante_previo + timedelta(
                     milliseconds=limite + max(0, margen_ms) if limite > 0 else 0)
@@ -183,7 +201,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                      estado, detalle)
                 VALUES (%s, %s, %s, %s, %s, 'reservada', %s)
                 RETURNING id
-            ''', (codigo, uid, ahora.strftime('%Y-%m-%d %H:%M:%S.%f'), limite, configurada,
+            ''', (codigo, uid, ahora, limite, configurada,
                   '8101 conocida' if configurada else 'Sin datos 8101; sin garantia de cadencia'))
             execution_id = dbcr.fetchone()[0]
             dbcr.commit()  # Intencionadamente independiente de la transaccion ERP.
@@ -296,8 +314,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                     raise
                 # La excepcion ya incluye el margen de recepcion, no duplicarlo.
                 restante = exc.espera_segundos + 0.01
-                if (numero >= reintentos + 1 or
-                        restante + total_dormido > espera_maxima_segundos):
+                if restante + total_dormido > espera_maxima_segundos:
                     raise RechazoFrecuenciaOMIE(codigo_consulta,
                                                 '%s. Proximo intento UTC: %s' %
                                                 (ultimo_detalle, exc.disponible_en))
