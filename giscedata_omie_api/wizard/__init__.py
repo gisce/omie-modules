@@ -7,3 +7,4 @@ from . import wizard_consulta_datos_usuario
 from . import wizard_consulta_omie
 from . import wizard_siom_minimum_time
 from . import wizard_siom_query_reconcile
+from . import wizard_siom_exclusion_observation
