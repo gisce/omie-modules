@@ -10,12 +10,12 @@ Se limita a consultas ENCOL; los envios MD/IDA requieren su propia politica.
 """
 from __future__ import absolute_import
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from osv import osv, fields
-from tools.translate import _
 import logging
 import re
 import time
+from tools.translate import _
 
 _logger = logging.getLogger(__name__)
 
@@ -161,7 +161,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
             else:
                 limite = 0  # No equivale a una afirmacion de OMIE: configurada=False.
             dbcr.execute("SELECT clock_timestamp() AT TIME ZONE 'UTC'")
-            ahora = dbcr.fetchone()[0]
+            ahora = datetime.strptime(dbcr.fetchone()[0], '%Y-%m-%d %H:%M:%S.%f')
             dbcr.execute('''
                 SELECT fecha_intento
                   FROM giscedata_omie_siom_query_execution
@@ -170,7 +170,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
             ''', (codigo,))
             anterior = dbcr.fetchone()
             if anterior and configurada:
-                instante_previo = anterior[0]
+                instante_previo = datetime.strptime(anterior[0], '%Y-%m-%d %H:%M:%S.%f')
                 # Margen operativo: reserva local anterior a la recepcion OMIE.
                 permitido = instante_previo + timedelta(
                     milliseconds=limite + max(0, margen_ms) if limite > 0 else 0)
@@ -183,7 +183,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                      estado, detalle)
                 VALUES (%s, %s, %s, %s, %s, 'reservada', %s)
                 RETURNING id
-            ''', (codigo, uid, ahora, limite, configurada,
+            ''', (codigo, uid, ahora.strftime('%Y-%m-%d %H:%M:%S.%f'), limite, configurada,
                   '8101 conocida' if configurada else 'Sin datos 8101; sin garantia de cadencia'))
             execution_id = dbcr.fetchone()[0]
             dbcr.commit()  # Intencionadamente independiente de la transaccion ERP.
