@@ -1,28 +1,36 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
-from osv import osv, fields
 from omie import ClientOMIE
+from osv import osv, fields
 from zeep import helpers
+from tools.translate import _
 
 
 class WizardConsultaFechaHora(osv.osv_memory):
 
     _name = 'wizard.consulta.fecha.hora'
-    _description = """Este servicio permite consultar la fecha y hora oficial del Mercado"""
+    _description = _("""Este servicio permite consultar la fecha y hora oficial del Mercado""")
 
     def consulta_fecha_hora(self, cursor, uid, ids, context=None):
         if context is None:
             context = {}
 
+        control = self.pool.get('giscedata.omie.siom.service.execution')
+
         wiz_id = ids[0]
         ctx = context.copy()
         ctx.update({'prefetch': False})
-        wiz_brw = self.browse(cursor, uid, wiz_id, context=ctx)
+        wiz_brw = self.simple_browse(cursor, uid, wiz_id, context=ctx)
 
         client = ClientOMIE()
-        result = client.ServicioConsultaFechaHora()
+
+        result = control.ejecutar_servicio(
+            cursor, uid, 'ServicioConsultaFechaHora', lambda: client.ServicioConsultaFechaHora()
+        )
         res_serialized = helpers.serialize_object(result)
+
         fecha_hora = res_serialized.get('v', False)
+
         if fecha_hora:
             fecha_hora = fecha_hora.strftime("%Y-%m-%d %H:%M:%s")[:19]
             wiz_brw.write({'fecha_hora': fecha_hora, 'state': 'end'})

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <!-- Menú Configuración SIOM -->
+        <menuitem id="menu_omie_siom_limits" name="Configuración SIOM" parent="menu_omie"
+                  groups="group_giscedata_omie_oferta_r,group_giscedata_omie_oferta_w,group_giscedata_omie_oferta_u"
+                  sequence="35"/>
+
+        <!-- Tiempos mínimos -->
+        <record id="view_siom_minimum_time_tree" model="ir.ui.view">
+            <field name="name">giscedata.omie.siom.minimum.time.tree</field>
+            <field name="model">giscedata.omie.siom.minimum.time</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Tiempos mínimos SIOM (8101)">
+                    <field name="consulta"/>
+                    <field name="titulo"/>
+                    <field name="tiempo_agente_ms"/>
+                    <field name="tiempo_certificado_ms"/>
+                    <field name="tipo_acceso"/>
+                    <field name="fecha_actualizacion"/>
+                </tree>
+            </field>
+        </record>
+        <record id="view_siom_minimum_time_form" model="ir.ui.view">
+            <field name="name">giscedata.omie.siom.minimum.time.form</field>
+            <field name="model">giscedata.omie.siom.minimum.time</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Tiempo mínimo SIOM">
+                    <field name="consulta" readonly="1"/>
+                    <field name="titulo" readonly="1"/>
+                    <field name="tiempo_agente_ms" readonly="1"/>
+                    <field name="tiempo_certificado_ms" readonly="1"/>
+                    <field name="tipo_acceso" readonly="1"/>
+                    <field name="fecha_actualizacion" readonly="1"/>
+                </form>
+            </field>
+        </record>
+        <record id="action_siom_minimum_time" model="ir.actions.act_window">
+            <field name="name">Tiempos mínimos (8101)</field>
+            <field name="res_model">giscedata.omie.siom.minimum.time</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+        <menuitem id="menu_siom_minimum_time" parent="menu_omie_siom_limits"
+                  action="action_siom_minimum_time" sequence="10"/>
+
+        <!-- Sincronización -->
+        <record id="view_siom_minimum_time_sync_tree" model="ir.ui.view">
+            <field name="name">giscedata.omie.siom.minimum.time.sync.tree</field>
+            <field name="model">giscedata.omie.siom.minimum.time.sync</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Consultas realizadas 8101">
+                    <field name="estado"/>
+                    <field name="total_filas"/>
+                    <field name="fecha_ultimo_intento"/>
+                    <field name="fecha_ultimo_exito"/>
+                </tree>
+            </field>
+        </record>
+        <record id="view_siom_minimum_time_sync_form" model="ir.ui.view">
+            <field name="name">giscedata.omie.siom.minimum.time.sync.form</field>
+            <field name="model">giscedata.omie.siom.minimum.time.sync</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Consulta realizada 8101">
+                    <field name="estado"/>
+                    <field name="total_filas"/>
+                    <field name="fecha_ultimo_intento"/>
+                    <field name="fecha_ultimo_exito"/>
+                </form>
+            </field>
+        </record>
+        <record id="action_siom_minimum_time_sync" model="ir.actions.act_window">
+            <field name="name">Estado de sincronización 8101</field>
+            <field name="res_model">giscedata.omie.siom.minimum.time.sync</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+        <menuitem id="menu_siom_minimum_time_sync" parent="menu_omie_siom_limits"
+                  action="action_siom_minimum_time_sync" sequence="20"/>
+    </data>
+</openerp>

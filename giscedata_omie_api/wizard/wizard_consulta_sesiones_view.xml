@@ -10,8 +10,13 @@
                     <field name="state" invisible="1"/>
                     <group col="10" attrs="{'invisible': [('state', '!=', 'init')]}">
                         <label string="Consultar la Sesiones del Mercado en Tiempo Real." colspan="10"/>
-                        <button icon="gtk-cancel" special="cancel" string="Cancelar" type="object" colspan="5"/>
-				        <button icon="gtk-ok" name="consulta_sesiones" string="Consultar Sesiones" type="object" colspan="5"/>
+                        <group col="10">
+                            <label colspan="6"/>
+                            <button icon="gtk-cancel" special="cancel" string="Cancelar" type="object" danger="1"
+                                    colspan="2"/>
+                            <button icon="gtk-ok" name="consulta_sesiones" string="Consultar Sesiones" type="object"
+                                    primary="1" colspan="2"/>
+                        </group>
                     </group>
                     <group col="4" attrs="{'invisible': [('state', '!=', 'end')]}">
                         <group string="Mensaje" icon="message" colspan="4" attrs="{'readonly':[('state','=','end')]}">
@@ -72,11 +77,19 @@
                                 <field name="mi_num_sesion_ult"/>
                             </group>
                         </group>
-                        <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" colspan="4"/>
+                        <group col="10">
+                            <label colspan="8"/>
+                            <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" colspan="2"
+                                    primary="1" danger="1"/>
+                        </group>
                     </group>
                     <group col="4" attrs="{'invisible': [('state', '!=', 'error')]}">
                         <label string="No se ha realizado correctamente la conexión con OMIE."/>
-                        <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" colspan="4"/>
+                        <group col="10">
+                            <label colspan="8"/>
+                            <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" danger="1"
+                                    primary="1" colspan="2"/>
+                        </group>
                     </group>
                 </form>
             </field>
