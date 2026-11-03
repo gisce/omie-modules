@@ -44,6 +44,7 @@ class ReintentosTests(unittest.TestCase):
         self.business = _legacy.FakeBusinessCursor()
         self.model = self.module.GiscedataOmieSiomQueryExecution()
         self.model._nueva_conexion = lambda cr: self.db.cursor()
+        self.model._sincronizar_8101_inicial = lambda cr, codigo: None
         self.soap_calls = 0
 
     def ejecutar(self, codigo=5222, **kwargs):
@@ -99,6 +100,19 @@ class ReintentosTests(unittest.TestCase):
                 self.business, 7, 5222, consulta,
                 refrescar_8101=lambda cr: False)
         self.assertEqual(veces[0], 1)
+        self.assertEqual(self.db.attempts[-1]['estado'], 'rechazada_frecuencia')
+
+    def test_refresco_falso_no_reintenta_ni_con_limite_antiguo(self):
+        self.db.limits[5222] = (1000, 1000)
+        veces = [0]
+        def soap():
+            veces[0] += 1
+            return {'Respuesta': [{'CodigoRespuesta': {'v': 'X'},
+                                    'TextoRespuesta': ['Too many requests']}]}
+        with self.assertRaises(self.module.RechazoFrecuenciaOMIE):
+            self.model.ejecutar_consulta(self.business, 7, 5222, soap,
+                refrescar_8101=lambda cr: False)
+        self.assertEqual(veces, [1])
         self.assertEqual(self.db.attempts[-1]['estado'], 'rechazada_frecuencia')
 
     def test_rechazo_refresca_y_reintenta_tras_contador_reiniciado(self):

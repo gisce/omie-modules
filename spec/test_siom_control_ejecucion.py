@@ -20,7 +20,7 @@ class FakeFields(object):
 
 
 class FakeOsV(object):
-    pass
+    except_osv = ValueError
 
 
 class FakeStore(object):
@@ -51,6 +51,7 @@ class FakePgCursor(object):
         self.closed = False
         self.pending_insert = None
         self.pending_update = None
+        self.pending_reconcile = None
         self.sql = []
 
     def execute(self, statement, params=()):
@@ -64,6 +65,15 @@ class FakePgCursor(object):
             self.result = (row,) if row is not None else ()
         elif 'clock_timestamp() at time zone' in text and text.startswith('select'):
             self.result = ((self.store.time,),)
+        elif text.startswith('select id from giscedata_omie_siom_query_execution'):
+            rows = [r for r in self.store.attempts if r['consulta'] == params[0]]
+            self.result = ((rows[0]['id'],),) if rows else ()
+        elif text.startswith('select consulta, estado, fecha_intento'):
+            rows = [r for r in self.store.attempts if r['id'] == params[0]]
+            self.result = ((rows[0]['consulta'], rows[0]['estado'], rows[0]['fecha_intento']),) if rows else ()
+        elif text.startswith('select estado, fecha_intento'):
+            rows = [r for r in self.store.attempts if r['id'] == params[0]]
+            self.result = ((rows[0]['estado'], rows[0]['fecha_intento']),) if rows else ()
         elif 'select fecha_intento' in text:
             candidates = [r for r in self.store.attempts if r['consulta'] == params[0]]
             candidates.sort(key=lambda r: (r['fecha_intento'], r['id']), reverse=True)
@@ -77,6 +87,12 @@ class FakePgCursor(object):
                                        configurada=configurada, detalle=detalle,
                                        estado='reservada', fecha_fin=None)
             self.result = ((new_id,),)
+        elif text.startswith('update giscedata_omie_siom_query_execution') and 'motivo_conciliacion' in text:
+            motivo, uid, execution_id = params
+            rows = [r for r in self.store.attempts if r['id'] == execution_id and r['estado'] == 'reservada']
+            self.rowcount = len(rows)
+            self.pending_reconcile = (rows, motivo, uid) if rows else None
+            self.result = None
         elif text.startswith('update giscedata_omie_siom_query_execution'):
             estado, detalle, execution_id = params
             existing = [r for r in self.store.attempts if r['id'] == execution_id and r['estado'] == 'reservada']
@@ -106,11 +122,18 @@ class FakePgCursor(object):
                 row['detalle'] = detail
                 row['fecha_fin'] = self.store.time
             self.pending_update = None
+        if self.pending_reconcile:
+            rows, motivo, uid = self.pending_reconcile
+            for row in rows:
+                row.update(estado='conciliada', fecha_fin=self.store.time,
+                           motivo_conciliacion=motivo, usuario_conciliacion=uid)
+            self.pending_reconcile = None
         self.store.commit_count += 1
 
     def rollback(self):
         self.pending_insert = None
         self.pending_update = None
+        self.pending_reconcile = None
         self.store.rollback_count += 1
 
     def close(self):
@@ -135,7 +158,7 @@ class ControlTests(unittest.TestCase):
                   'giscedata_omie_api.giscedata_omie_siom_query_execution'):
             cls.backup[k] = sys.modules.get(k)
         fake_osv = types.ModuleType('osv')
-        fake_osv.osv = type('OSV', (), {'osv': FakeOsV})
+        fake_osv.osv = type('OSV', (), {'osv': FakeOsV, 'except_osv': ValueError})
         fake_osv.fields = FakeFields()
         sys.modules['osv'] = fake_osv
         pkg = types.ModuleType('giscedata_omie_api')
@@ -156,6 +179,8 @@ class ControlTests(unittest.TestCase):
         self.business = FakeBusinessCursor()
         self.model = self.module.GiscedataOmieSiomQueryExecution()
         self.model._nueva_conexion = lambda cr: self.db.cursor()
+        # Los tests historicos se centran en la operacion, no en el bootstrap.
+        self.model._sincronizar_8101_inicial = lambda cr, codigo: None
         self.soap_calls = 0
 
     def llamada(self):
@@ -244,8 +269,92 @@ class ControlTests(unittest.TestCase):
     def test_sin_datos_8101_observa_pero_no_inventa(self):
         self.ejecutar()
         self.assertFalse(self.db.attempts[0]['configurada'])
-        self.assertEqual(self.db.attempts[0]['limite_ms'], 0)
+        self.assertEqual(self.db.attempts[0]['limite_ms'], 5000)
         self.assertEqual(self.db.attempts[0]['estado'], 'respondida')
+
+    def test_intervalo_local_sin_8101_frena_rafagas(self):
+        self.ejecutar()
+        self.db.time += timedelta(seconds=4)
+        with self.assertRaises(self.module.TiempoMinimoNoCumplido):
+            self.ejecutar()
+        self.db.time += timedelta(seconds=1)
+        self.ejecutar()
+        self.assertEqual(self.soap_calls, 2)
+        self.assertFalse(self.db.attempts[0]['configurada'])
+
+    def test_8101_inicial_se_intenta_una_vez(self):
+        original = self.module.GiscedataOmieSiomQueryExecution._sincronizar_8101_inicial
+        self.model._sincronizar_8101_inicial = lambda cr, codigo: original(self.model, cr, codigo)
+        llamadas = []
+        def refrescar(cr):
+            llamadas.append(1)
+            self.db.attempts.append(dict(id=100, consulta=8101, estado='respondida',
+                fecha_intento=self.db.time))
+            return True
+        self.model._refrescar_8101 = refrescar
+        self.ejecutar()
+        self.db.time += timedelta(seconds=5)
+        self.ejecutar()
+        self.assertEqual(llamadas, [1])
+
+    def test_conciliacion_requiere_verificacion_y_antiguedad(self):
+        execution_id = self.model._reservar(self.business, 7, 5222)
+        with self.assertRaises(ValueError):
+            self.model.conciliar_reserva(self.business, 1, execution_id,
+                'Proceso cerrado confirmado por el operador', confirmado=True)
+        self.db.time += timedelta(minutes=16)
+        with self.assertRaises(ValueError):
+            self.model.conciliar_reserva(self.business, 1, execution_id,
+                'Proceso cerrado confirmado por el operador', confirmado=False)
+        with self.assertRaises(ValueError):
+            self.model.conciliar_reserva(self.business, 1, execution_id,
+                'corto', confirmado=True)
+        self.assertEqual(self.db.attempts[0]['estado'], 'reservada')
+
+    def test_conciliacion_manual_permite_consultar_sin_borrar_historico(self):
+        execution_id = self.model._reservar(self.business, 7, 5222)
+        self.db.time += timedelta(minutes=16)
+        self.assertTrue(self.model.conciliar_reserva(
+            self.business, 1, execution_id,
+            'Worker detenido y peticion terminada; comprobado por soporte',
+            confirmado=True, usuario_solicitante=23))
+        self.assertEqual(self.db.attempts[0]['estado'], 'conciliada')
+        self.assertEqual(self.db.attempts[0]['usuario_conciliacion'], 23)
+        self.assertIn('Worker detenido', self.db.attempts[0]['motivo_conciliacion'])
+        self.ejecutar()
+        self.assertEqual(len(self.db.attempts), 2)
+        with self.assertRaises(ValueError):
+            self.model.conciliar_reserva(self.business, 1, execution_id,
+                'Worker detenido y peticion terminada; comprobado por soporte',
+                confirmado=True)
+
+    def test_refresco_vacio_o_parcial_no_habilita_reintento(self):
+        class Minimos(object):
+            resultado = {}
+            def actualizar_tiempos_minimos(self, cr, uid):
+                return self.resultado
+        class Pool(object):
+            def __init__(self, model):
+                self.model = model
+            def get(self, name):
+                return self.model
+        minimo = Minimos()
+        self.model.pool = Pool(minimo)
+        minimo.resultado = {'estado': 'vacia', 'consultas_recibidas': []}
+        self.assertFalse(self.model._refrescar_8101(self.business, 5222))
+        minimo.resultado = {'estado': 'con_datos', 'consultas_recibidas': [5608]}
+        self.assertFalse(self.model._refrescar_8101(self.business, 5222))
+        minimo.resultado = {'estado': 'con_datos', 'consultas_recibidas': [5222]}
+        self.assertTrue(self.model._refrescar_8101(self.business, 5222))
+
+    def test_conciliacion_denegada_a_usuario_no_admin(self):
+        execution_id = self.model._reservar(self.business, 7, 5222)
+        self.db.time += timedelta(minutes=16)
+        with self.assertRaises(ValueError):
+            self.model.conciliar_reserva(self.business, 7, execution_id,
+                'Verificacion externa finalizada sin trabajadores activos',
+                confirmado=True)
+        self.assertEqual(self.db.attempts[0]['estado'], 'reservada')
 
     def test_sin_datos_modo_estricto_impide_consulta(self):
         with self.assertRaises(self.module.SinConfiguracionTiempoMinimo):

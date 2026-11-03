@@ -112,7 +112,8 @@ class GiscedataOmieSiomMinimumTime(osv.osv):
         res = {'estado': vals_estado['estado'],
                'recibidas': len(filas),
                'nuevas': nuevas,
-               'actualizadas': modificadas}
+               'actualizadas': modificadas,
+               'consultas_recibidas': [fila['consulta'] for fila in filas]}
 
         return res
 

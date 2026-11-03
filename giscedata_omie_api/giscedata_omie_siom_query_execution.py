@@ -19,6 +19,11 @@ from tools.translate import _
 
 _logger = logging.getLogger(__name__)
 
+# Proteccion local si OMIE no publica limite para una consulta. No es un
+# valor oficial de 8101; los automatismos mantienen su propia cadencia.
+MINIMO_LOCAL_SIN_8101_MS = 5000
+ANTIGUEDAD_MINIMA_CONCILIACION_SEGUNDOS = 900
+
 
 def _fecha_pg_utc(valor):
     """psycopg2 devuelve datetime para columnas timestamp; los tests pueden usar texto."""
@@ -60,8 +65,12 @@ class RechazoFrecuenciaOMIE(Exception):
 # entorno. No se consideran rechazos los errores funcionales genericos.
 try:
     text_type = unicode
+    string_types = (basestring,)
+    long_type = long
 except NameError:  # Python 3
     text_type = str
+    string_types = (str,)
+    long_type = int
 
 _FRECUENCIA_TXT = re.compile(
     u'(?:tiempo\\s+m[ií]nimo|intervalo\\s+m[ií]nimo|frecuencia\\s+de\\s+consultas|'
@@ -126,6 +135,18 @@ class SinConfiguracionTiempoMinimo(Exception):
     """No hay límite 8101 conocido para la consulta (modo estricto)."""
 
 
+def _codigo_consulta(consulta):
+    if isinstance(consulta, bool):
+        raise ValueError('Codigo de consulta invalido')
+    try:
+        codigo = int(consulta)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError('Codigo de consulta invalido')
+    if codigo <= 0 or codigo > 2147483647 or unicode_code_invalid(consulta, codigo):
+        raise ValueError('Codigo de consulta invalido')
+    return codigo
+
+
 class GiscedataOmieSiomQueryExecution(osv.osv):
 
     _name = 'giscedata.omie.siom.query.execution'
@@ -138,20 +159,17 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
         from pooler import get_db
         return get_db(cr.dbname).cursor()
 
-    def _reservar(self, cr, uid, consulta, exigir_configuracion=False, margen_ms=500):
+    def _reservar(self, cr, uid, consulta, exigir_configuracion=False, margen_ms=500,
+                 minimo_local_ms=MINIMO_LOCAL_SIN_8101_MS):
         """Transaccion corta: lock -> leer -> comprobar -> insertar -> commit.
 
         No conservar bloqueos de PostgreSQL durante las llamadas a OMIE.
         El momento de intento es el reloj PostgreSQL, no el del worker.
         """
-        if isinstance(consulta, bool):
-            raise ValueError('Codigo de consulta invalido')
-        try:
-            codigo = int(consulta)
-        except (TypeError, ValueError, OverflowError):
-            raise ValueError('Codigo de consulta invalido')
-        if codigo <= 0 or codigo > 2147483647 or unicode_code_invalid(consulta, codigo):
-            raise ValueError('Codigo de consulta invalido')
+        codigo = _codigo_consulta(consulta)
+        if (isinstance(minimo_local_ms, bool) or
+                not isinstance(minimo_local_ms, (int, long_type)) or minimo_local_ms < 0):
+            raise ValueError('minimo_local_ms invalido')
         dbcr = self._nueva_conexion(cr)
         try:
             # Locks de sesion NO; advisory_xact_lock se libera en commit/rollback.
@@ -173,7 +191,8 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                     raise ValueError('Configuracion 8101 incompleta/invalida para %s' % codigo)
                 limite = max(agente, certificado)
             else:
-                limite = 0  # No equivale a una afirmacion de OMIE: configurada=False.
+                # Limite LOCAL, sin pretender que OMIE haya comunicado un cero.
+                limite = minimo_local_ms
             dbcr.execute("SELECT clock_timestamp() AT TIME ZONE 'UTC'")
             ahora = _fecha_pg_utc(dbcr.fetchone()[0])
             dbcr.execute('''
@@ -187,11 +206,12 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                 raise ConsultaSIOMPendiente(
                     'La consulta SIOM %s tiene una solicitud sin respuesta; '
                     'no se ha enviado otra peticion' % codigo)
-            if anterior and configurada:
+            if anterior and (configurada or minimo_local_ms > 0):
                 instante_previo = _fecha_pg_utc(anterior[0])
                 # Margen operativo: reserva local anterior a la recepcion OMIE.
                 permitido = instante_previo + timedelta(
-                    milliseconds=limite + max(0, margen_ms) if limite > 0 else 0)
+                    milliseconds=(limite + max(0, margen_ms) if configurada and limite > 0
+                                  else limite))
                 if ahora < permitido:
                     espera = (permitido - ahora).total_seconds()
                     raise TiempoMinimoNoCumplido(codigo, permitido, espera)
@@ -202,7 +222,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                 VALUES (%s, %s, %s, %s, %s, 'reservada', %s)
                 RETURNING id
             ''', (codigo, uid, ahora, limite, configurada,
-                  '8101 conocida' if configurada else 'Sin datos 8101; sin garantia de cadencia'))
+                  '8101 conocida' if configurada else 'Sin 8101; intervalo local %s ms' % limite))
             execution_id = dbcr.fetchone()[0]
             dbcr.commit()  # Intencionadamente independiente de la transaccion ERP.
             return execution_id
@@ -246,7 +266,99 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                 execution_id)
             return False
 
-    def _refrescar_8101(self, cr):
+    def _sincronizar_8101_inicial(self, cr, codigo):
+        """Intentar 8101 una sola vez cuando aun no hay historial de consulta.
+
+        El intento de 8101 queda registrado antes del SOAP. Si falla o
+        devuelve vacio, la consulta operativa sigue usando intervalo local.
+        No volver a lanzarla automaticamente en cada consulta: eso generaria
+        trafico innecesario y eventualmente reintentos sin control.
+        """
+        if str(codigo) == '8101':
+            return
+        dbcr = self._nueva_conexion(cr)
+        try:
+            dbcr.execute("""
+                SELECT id FROM giscedata_omie_siom_query_execution
+                 WHERE consulta = %s LIMIT 1
+            """, (8101,))
+            hubo_intento = dbcr.fetchone() is not None
+        finally:
+            dbcr.rollback()
+            dbcr.close()
+        if not hubo_intento:
+            if not self._refrescar_8101(cr):
+                _logger.warning('8101 inicial sin limites utilizables; usar control local')
+
+    def conciliar_reserva(self, cr, uid, execution_id, motivo,
+                          confirmado=False, usuario_solicitante=None):
+        """Cerrar reserva huerfana, solo admin, tras comprobacion externa.
+
+        El lock evita carreras con _reservar, pero no demuestra que el
+        worker este muerto ni que OMIE haya terminado. La confirmacion
+        administrativa DEBE basarse en una verificacion real.
+        """
+        if uid != 1:
+            raise osv.except_osv('Acceso denegado',
+                                 'La conciliacion requiere permisos de administrador.')
+        if isinstance(execution_id, bool):
+            raise ValueError('Identificador de intento invalido')
+        try:
+            execution_id = int(execution_id)
+        except (TypeError, ValueError, OverflowError):
+            raise ValueError('Identificador de intento invalido')
+        if execution_id <= 0:
+            raise ValueError('Identificador de intento invalido')
+        if not confirmado:
+            raise ValueError('Debe confirmarse que el worker ya no ejecuta la consulta')
+        if (not isinstance(motivo, string_types) or
+                len(motivo.strip()) < 15 or len(motivo) > 1000):
+            raise ValueError('Indique un motivo de conciliacion (15-1000 caracteres)')
+        dbcr = self._nueva_conexion(cr)
+        try:
+            dbcr.execute("""
+                SELECT consulta, estado, fecha_intento
+                  FROM giscedata_omie_siom_query_execution WHERE id = %s
+            """, (execution_id,))
+            fila = dbcr.fetchone()
+            if not fila or fila[1] != 'reservada':
+                raise ValueError('La reserva no existe o ya esta finalizada')
+            codigo = fila[0]
+            dbcr.execute('SELECT pg_advisory_xact_lock(hashtext(%s), %s)',
+                         ('giscedata_omie_api.siom.encol', codigo))
+            dbcr.execute("""
+                SELECT estado, fecha_intento
+                  FROM giscedata_omie_siom_query_execution WHERE id = %s FOR UPDATE
+            """, (execution_id,))
+            estado, fecha = dbcr.fetchone()
+            if estado != 'reservada':
+                raise ValueError('La reserva ha cambiado de estado')
+            dbcr.execute("SELECT clock_timestamp() AT TIME ZONE 'UTC'")
+            ahora = _fecha_pg_utc(dbcr.fetchone()[0])
+            antiguedad = (ahora - _fecha_pg_utc(fecha)).total_seconds()
+            if antiguedad < ANTIGUEDAD_MINIMA_CONCILIACION_SEGUNDOS:
+                raise ValueError('Reserva demasiado reciente para conciliacion (%s s)' %
+                                 ANTIGUEDAD_MINIMA_CONCILIACION_SEGUNDOS)
+            dbcr.execute("""
+                UPDATE giscedata_omie_siom_query_execution
+                   SET estado = 'conciliada',
+                       fecha_fin = clock_timestamp() AT TIME ZONE 'UTC',
+                       motivo_conciliacion = %s, usuario_conciliacion = %s
+                 WHERE id = %s AND estado = 'reservada'
+            """, (motivo.strip(), usuario_solicitante or uid, execution_id))
+            if dbcr.rowcount != 1:
+                raise ValueError('La reserva ha cambiado de estado')
+            dbcr.commit()
+            _logger.warning('Reserva SIOM %s (consulta %s) conciliada por uid=%s',
+                            execution_id, codigo, usuario_solicitante or uid)
+            return True
+        except BaseException:
+            dbcr.rollback()
+            raise
+        finally:
+            dbcr.close()
+
+    def _refrescar_8101(self, cr, codigo=None):
         """Transaccion independiente: la sincronizacion sobrevive a rollback ERP.
 
         La propia consulta 8101 pasa por ejecutar_consulta; nunca se refresca
@@ -255,9 +367,12 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
         dbcr = self._nueva_conexion(cr)
         try:
             model = self.pool.get('giscedata.omie.siom.minimum.time')
-            model.actualizar_tiempos_minimos(dbcr, 1)
+            resultado = model.actualizar_tiempos_minimos(dbcr, 1)
             dbcr.commit()
-            return True
+            # Una respuesta vacia (o parcial sin el codigo rechazado) no
+            # valida limites antiguos para repetir una peticion.
+            return (resultado['estado'] == 'con_datos' and
+                    (codigo is None or codigo in resultado['consultas_recibidas']))
         except Exception as exc:
             dbcr.rollback()
             _logger.warning('No se pudo actualizar SIOM 8101 tras rechazo: %s',
@@ -285,7 +400,9 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                           exigir_configuracion=False, reintentos=1,
                           espera_maxima_segundos=10.0, margen_ms=500,
                           codigos_frecuencia=None, dormir=None,
-                          refrescar_8101=None):
+                          refrescar_8101=None,
+                          minimo_local_ms=MINIMO_LOCAL_SIN_8101_MS,
+                          sincronizacion_inicial=True):
         """Ejecuta ENCOL; solo reintenta rechazo explicito de frecuencia.
 
         No duerme si la espera supera el presupuesto. Nunca reintenta timeouts.
@@ -295,12 +412,16 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
         if not callable(llamada):
             raise ValueError('llamada debe ser callable')
         if (reintentos < 0 or reintentos > 3 or espera_maxima_segundos < 0 or
-                margen_ms < 0):
+                margen_ms < 0 or isinstance(minimo_local_ms, bool) or
+                not isinstance(minimo_local_ms, (int, long_type)) or minimo_local_ms < 0):
             raise ValueError('Politica de reintentos invalida')
         dormir = dormir or time.sleep
         contexto = context or {}
         if codigos_frecuencia is None:
             codigos_frecuencia = contexto.get('siom_codigos_rechazo_frecuencia', ())
+        codigo = _codigo_consulta(codigo_consulta)
+        if sincronizacion_inicial:
+            self._sincronizar_8101_inicial(cr, codigo)
         hubo_rechazo = False
         ultimo_detalle = ''
         total_dormido = 0.0
@@ -308,7 +429,8 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
             try:
                 intento = self._reservar(cr, uid, codigo_consulta,
                                          exigir_configuracion=exigir_configuracion,
-                                         margen_ms=margen_ms)
+                                         margen_ms=margen_ms,
+                                         minimo_local_ms=minimo_local_ms)
             except TiempoMinimoNoCumplido as exc:
                 if not hubo_rechazo:
                     raise
@@ -322,7 +444,8 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                 total_dormido += restante
                 intento = self._reservar(cr, uid, codigo_consulta,
                                          exigir_configuracion=exigir_configuracion,
-                                         margen_ms=margen_ms)
+                                         margen_ms=margen_ms,
+                                         minimo_local_ms=minimo_local_ms)
             try:
                 respuesta = llamada()
             except BaseException as exc:
@@ -365,15 +488,20 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                     return respuesta
                 ultimo_detalle = frecuencia
             hubo_rechazo = True
-            if str(codigo_consulta) == '8101':
+            if codigo == 8101:
                 raise RechazoFrecuenciaOMIE(codigo_consulta,
                                             '%s (no refrescar 8101 recursivamente)' % ultimo_detalle)
             if numero >= reintentos:
                 raise RechazoFrecuenciaOMIE(codigo_consulta, ultimo_detalle)
-            refrescar = refrescar_8101 or self._refrescar_8101
-            refrescar(cr)
+            if refrescar_8101 is None:
+                refrescado = self._refrescar_8101(cr, codigo)
+            else:
+                refrescado = refrescar_8101(cr)
+            if not refrescado:
+                raise RechazoFrecuenciaOMIE(
+                    codigo_consulta, u'%s. No se ha podido actualizar 8101' % ultimo_detalle)
             # Sin un tiempo conocido y positivo, no sabemos cuando reintentar.
-            limite = self._limite_conocido(cr, int(codigo_consulta))
+            limite = self._limite_conocido(cr, codigo)
             if not limite:
                 raise RechazoFrecuenciaOMIE(
                     codigo_consulta, u'%s. No existe un límite positivo conocido' % ultimo_detalle)
@@ -391,8 +519,11 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
             ('respondida', 'Respuesta SOAP recibida (no implica éxito)'),
             ('incierta', 'Fallo local/transport; resultado incierto'),
             ('rechazada_frecuencia', 'OMIE rechazo por frecuencia'),
+            ('conciliada', 'Reserva cerrada manualmente (verificacion externa)'),
         ], 'Estado del intento', required=True, readonly=True),
-        'detalle': fields.char('Diagnóstico local', size=256, readonly=True)
+        'detalle': fields.char('Diagnóstico local', size=256, readonly=True),
+        'motivo_conciliacion': fields.text('Motivo de conciliacion', readonly=True),
+        'usuario_conciliacion': fields.many2one('res.users', 'Conciliado por', readonly=True)
     }
 
 def unicode_code_invalid(original, code):

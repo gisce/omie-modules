@@ -64,7 +64,8 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
                      (id serial primary key, consulta integer, usuario_id integer,
                       fecha_intento timestamp, fecha_fin timestamp,
                       limite_ms integer, configurada boolean,
-                      estado varchar(64), detalle varchar(256))''' % cls.schema)
+                      estado varchar(64), detalle varchar(256),
+                      usuario_conciliacion integer, motivo_conciliacion text)''' % cls.schema)
         cr.execute('''CREATE TABLE %s.giscedata_omie_siom_service_execution
                      (id serial primary key, servicio varchar(100), oferta_id integer,
                       usuario_id integer, fecha_intento timestamp, fecha_fin timestamp,
@@ -120,6 +121,7 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
             psycopg2.connect(DSN, options='-c search_path=%s' % self.schema))
         self.control = self.consultas.GiscedataOmieSiomQueryExecution()
         self.control._nueva_conexion = self.ofertas._nueva_conexion
+        self.control._sincronizar_8101_inicial = lambda cr, codigo: None
         conn = self.root.cursor()
         conn.execute('TRUNCATE TABLE %s.giscedata_omie_siom_query_execution RESTART IDENTITY' % self.schema)
         conn.execute('TRUNCATE TABLE %s.giscedata_omie_siom_service_execution RESTART IDENTITY' % self.schema)
@@ -139,6 +141,61 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
         cr.execute('SELECT count(*) FROM %s.giscedata_omie_siom_query_execution' % self.schema)
         self.assertEqual(cr.fetchone()[0], 1)
         cr.close()
+
+    def test_consulta_en_curso_no_se_solapa_con_pg_real(self):
+        entrar, soltar = threading.Event(), threading.Event()
+        fallos = []
+        def lento():
+            try:
+                def soap():
+                    entrar.set()
+                    if not soltar.wait(4):
+                        raise AssertionError('timeout test')
+                    return {'Respuesta': []}
+                self.control.ejecutar_consulta(
+                    self.business, 7, 5222, soap)
+            except Exception as exc:
+                fallos.append(exc)
+        hilo = threading.Thread(target=lento)
+        hilo.start()
+        self.assertTrue(entrar.wait(4))
+        try:
+            with self.assertRaises(self.consultas.ConsultaSIOMPendiente):
+                self.control.ejecutar_consulta(
+                    self.business, 8, 5222,
+                    lambda: self.fail('No debe hacer otro SOAP'))
+        finally:
+            soltar.set()
+            hilo.join(4)
+        self.assertFalse(hilo.is_alive())
+        self.assertFalse(fallos)
+
+    def test_conciliacion_manual_transaccion_independiente_pg(self):
+        execution_id = self.control._reservar(self.business, 7, 5222)
+        cur = self.root.cursor()
+        cur.execute("UPDATE %s.giscedata_omie_siom_query_execution "
+                    "SET fecha_intento = fecha_intento - interval '16 minutes' "
+                    "WHERE id = %%s" % self.schema, (execution_id,))
+        cur.close()
+        with self.assertRaises(self.consultas.ConsultaSIOMPendiente):
+            self.control.ejecutar_consulta(self.business, 8, 5222,
+                lambda: self.fail('No debe haber SOAP'))
+        self.assertTrue(self.control.conciliar_reserva(
+            self.business, 1, execution_id,
+            'Worker finalizado y consulta terminada, validacion manual',
+            confirmado=True, usuario_solicitante=42))
+        cr = self.root.cursor()
+        cr.execute('SELECT estado, motivo_conciliacion, usuario_conciliacion '
+                   'FROM %s.giscedata_omie_siom_query_execution WHERE id = %%s' %
+                   self.schema, (execution_id,))
+        estado, motivo, usuario = cr.fetchone()
+        cr.close()
+        self.assertEqual(estado, 'conciliada')
+        self.assertIn('Worker finalizado', motivo)
+        self.assertEqual(usuario, 42)
+        self.assertFalse(self.business.called)
+        self.control.ejecutar_consulta(self.business, 8, 5222,
+                                      lambda: {'Respuesta': []})
 
     def test_dos_ofertas_en_paralelo_seriadas_realmente(self):
         entrar, soltar = threading.Event(), threading.Event()

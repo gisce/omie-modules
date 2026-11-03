@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+  <data>
+    <record id="view_wizard_siom_query_reconcile_form" model="ir.ui.view">
+      <field name="name">wizard.siom.query.reconcile.form</field>
+      <field name="model">wizard.siom.query.reconcile</field>
+      <field name="type">form</field>
+      <field name="arch" type="xml">
+        <form string="Conciliar reserva de consulta SIOM">
+          <field name="state" invisible="1"/>
+          <group col="4" attrs="{'invisible': [('state', '!=', 'init')]}">
+            <label string="Solo para reservas huerfanas. Verifique fuera del ERP que el worker termino y la peticion a OMIE ya no esta activa. El cierre no elimina el intento ni su cadencia." colspan="4"/>
+            <field name="intento_id" colspan="4"/>
+            <field name="motivo" colspan="4"/>
+            <field name="confirmado" colspan="4"/>
+            <group col="10">
+              <label colspan="6"/>
+              <button special="cancel" string="Cancelar" icon="gtk-cancel" colspan="2" danger="1"/>
+              <button name="conciliar" type="object" string="Conciliar reserva" icon="gtk-ok" colspan="2" primary="1"/>
+            </group>
+          </group>
+          <group col="4" attrs="{'invisible': [('state', '!=', 'end')]}">
+            <label string="Reserva conciliada y registrada. Las proximas consultas seguiran sujetas al control de frecuencia." colspan="4"/>
+            <button special="cancel" string="Cerrar" icon="gtk-close" colspan="2" danger="1" primary="1"/>
+          </group>
+        </form>
+      </field>
+    </record>
+    <record id="action_wizard_siom_query_reconcile" model="ir.actions.act_window">
+      <field name="name">Conciliar reserva de consulta SIOM</field>
+      <field name="res_model">wizard.siom.query.reconcile</field>
+      <field name="view_type">form</field>
+      <field name="view_mode">form</field>
+      <field name="view_id" ref="view_wizard_siom_query_reconcile_form"/>
+      <field name="target">new</field>
+    </record>
+    <menuitem id="menu_wizard_siom_query_reconcile" name="Conciliar consulta SIOM pendiente"
+              parent="menu_omie_siom_limits" action="action_wizard_siom_query_reconcile"
+              groups="group_giscedata_omie_oferta_u" sequence="35"/>
+  </data>
+</openerp>
