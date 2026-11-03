@@ -1,17 +1,20 @@
 # -*- coding: utf-8 -*-
-"""Historial de respuestas SIOM 8100: SOLO observación, no exclusiones activas.
+"""Historial y refresco de intervalos SIOM 8100.
 
-No hay reglas de bloqueo hasta validar contrato de columnas, huso horario,
-semántica de las ventanas y vigencia con una respuesta real de OMIE.
+La consulta se puede actualizar sin activar los bloqueos. La aplicación de
+ventanas exige configuración explícita tras confirmar la semántica con OMIE.
 """
 from __future__ import absolute_import
 
 from datetime import datetime
+import logging
 from osv import osv, fields
 from tools.translate import _
 
 from giscedata_omie_api.giscedata_omie_siom_exclusion_observation_parser import (
     preparar_observacion_8100)
+
+_logger = logging.getLogger(__name__)
 
 
 class GiscedataOmieSiomExclusionObservation(osv.osv):
@@ -46,6 +49,41 @@ class GiscedataOmieSiomExclusionObservation(osv.osv):
             'huella_sha256': valores['huella_sha256'],
             'reglas_activadas': False,
         }
+
+    def sincronizar_8100(self, cursor, uid, context=None, client=None):
+        """Consulta y guarda 8100 con una transaccion independiente y breve.
+
+        Reutilizable por el cron, tras un rechazo explicito y en ejecuciones
+        manuales autorizadas. Un fallo no borra snapshots previos; la reserva
+        SOAP mantiene su propia auditoria mediante el controlador SIOM.
+        """
+        if uid != 1:
+            raise osv.except_osv('Permisos insuficientes',
+                                 _('Solo el administrador puede sincronizar SIOM 8100.'))
+        control = self.pool.get('giscedata.omie.siom.query.execution')
+        dbcr = control._nueva_conexion(cursor)
+        try:
+            resultado = self.registrar_observacion_8100(
+                dbcr, 1, context=context, client=client)
+            dbcr.commit()
+            return resultado
+        except BaseException:
+            dbcr.rollback()
+            raise
+        finally:
+            dbcr.close()
+
+    def cron_actualizar_8100(self, cursor, uid, context=None):
+        """Punto de entrada para ir.cron (30 min, sin ponerse al dia en rafaga).
+
+        No depende del huso horario ni activa la aplicacion de ventanas;
+        exige que el certificado/AppID y el entorno ya esten configurados.
+        """
+        resultado = self.sincronizar_8100(cursor, uid, context=context)
+        if resultado['interpretacion'] != 'valida':
+            _logger.warning('SIOM 8100: sincronizacion sin reglas validas (%s); '
+                            'se mantienen las anteriores', resultado['interpretacion'])
+        return True
 
     _columns = {
         'fecha_consulta': fields.datetime('Consulta UTC', required=True,
