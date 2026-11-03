@@ -13,6 +13,7 @@ from decimal import Decimal
 
 from giscedata_omie_api.giscedata_omie_siom_exclusion_diagnostic import (
     diagnosticar_respuesta_8100, Formato8100NoReconocido)
+from giscedata_omie_api.giscedata_omie_siom_exclusion_rules import parsear_intervalos_8100
 
 MAX_FILAS = 5000
 MAX_BYTES = 1024 * 1024
@@ -52,7 +53,26 @@ def preparar_observacion_8100(datos, max_bytes=MAX_BYTES):
     if len(respuesta_json.encode('utf-8')) > max_bytes:
         raise Formato8100NoReconocido('Respuesta 8100 mayor que el limite seguro de evidencia')
 
+    # Un formato no reconocido conserva su evidencia, pero no es elegible
+    # como configuracion operativa. Una respuesta vacia tampoco borra reglas.
+    if filas:
+        try:
+            intervalos = parsear_intervalos_8100(datos)
+        except Formato8100NoReconocido as exc:
+            interpretacion = 'no_interpretable'
+            error = str(exc)[:256]
+            intervalos_json = False
+        else:
+            interpretacion = 'valida'
+            error = False
+            intervalos_json = json.dumps(intervalos, ensure_ascii=True, sort_keys=True)
+    else:
+        interpretacion, error, intervalos_json = 'vacia', False, False
+
     return {
+        'interpretacion': interpretacion,
+        'error_interpretacion': error,
+        'intervalos_json': intervalos_json,
         'estado': 'con_datos' if filas else 'vacia',
         'total_filas': len(filas),
         'columnas_json': columnas_json,

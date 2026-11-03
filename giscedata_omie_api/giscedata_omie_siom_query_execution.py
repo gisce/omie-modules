@@ -11,6 +11,8 @@ Se limita a consultas ENCOL; los envios MD/IDA requieren su propia politica.
 from __future__ import absolute_import
 
 from datetime import datetime, timedelta
+import json
+import os
 from osv import osv, fields
 import logging
 import re
@@ -45,6 +47,21 @@ class TiempoMinimoNoCumplido(Exception):
         Exception.__init__(self, 'Consulta %s: esperar %.3f segundos (hasta %s UTC)' % (
             consulta, espera_segundos, disponible_en.strftime('%Y-%m-%d %H:%M:%S.%f')
         ))
+
+
+class SinConfiguracionExclusion8100(Exception):
+    """Control 8100 activo, pero sin una configuracion fiable/vigente."""
+
+
+class ConsultaExcluidaOMIE(Exception):
+    """La consulta coincide con una ventana 8100; no se ha llamado a OMIE."""
+
+    def __init__(self, consulta, ventana, zona):
+        self.consulta = consulta
+        self.ventana = ventana
+        self.zona = zona
+        Exception.__init__(self, 'Consulta %s excluida entre %s y %s (%s)' % (
+            consulta, ventana['inicio'], ventana['fin'], zona))
 
 
 class ConsultaSIOMPendiente(Exception):
@@ -159,6 +176,75 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
         from pooler import get_db
         return get_db(cr.dbname).cursor()
 
+    def _comprobar_exclusion_8100(self, dbcr, codigo, ahora):
+        """Control 8100 opcional, bajo el lock de la misma consulta.
+
+        NO habilitar hasta confirmar con OMIE zona horaria, recurrencia,
+        TipoAcceso=AMBAS, extremo fin y alcance del snapshot ENCOL.
+        Solo se lee la configuracion confirmada en BDD; nunca se consulta
+        a OMIE dentro de esta transaccion corta.
+        """
+        activacion = os.environ.get('SIOM_8100_APPLY', 'NO')
+        if activacion == 'NO':
+            return
+        if activacion != 'YES':
+            raise SinConfiguracionExclusion8100(
+                'SIOM_8100_APPLY debe ser YES o NO')
+        # La consulta de refresco debe poder ejecutarse aunque la instantanea
+        # anterior haya caducado; la propia 8100 conserva su auditoria 8101.
+        if codigo == 8100:
+            return
+        zona = os.environ.get('SIOM_8100_TIMEZONE')
+        if not zona:
+            raise SinConfiguracionExclusion8100(
+                'Falta SIOM_8100_TIMEZONE (requiere confirmacion OMIE)')
+        try:
+            antiguedad_maxima = int(os.environ.get('SIOM_8100_MAX_AGE_SECONDS', '3600'))
+        except (ValueError, TypeError):
+            raise SinConfiguracionExclusion8100('SIOM_8100_MAX_AGE_SECONDS invalido')
+        if antiguedad_maxima < 60:
+            raise SinConfiguracionExclusion8100('Antiguedad maxima 8100 demasiado corta')
+        dbcr.execute('''
+            SELECT interpretacion, intervalos_json, fecha_consulta
+              FROM giscedata_omie_siom_exclusion_observation
+             ORDER BY fecha_consulta DESC, id DESC LIMIT 1
+        ''')
+        actual = dbcr.fetchone()
+        if not actual:
+            raise SinConfiguracionExclusion8100('Sin observaciones 8100')
+        if actual[0] == 'vacia':
+            # Una respuesta vacia no elimina ventanas anteriores: usamos la
+            # ultima instantanea valida, siempre dentro del maximo de edad.
+            dbcr.execute('''
+                SELECT interpretacion, intervalos_json, fecha_consulta
+                  FROM giscedata_omie_siom_exclusion_observation
+                 WHERE interpretacion = 'valida'
+                 ORDER BY fecha_consulta DESC, id DESC LIMIT 1
+            ''')
+            actual = dbcr.fetchone()
+        if not actual or actual[0] != 'valida' or not actual[1]:
+            raise SinConfiguracionExclusion8100(
+                'Sin configuracion 8100 interpretable; no se envia consulta')
+        fecha = _fecha_pg_utc(actual[2])
+        if fecha > ahora or (ahora - fecha).total_seconds() > antiguedad_maxima:
+            raise SinConfiguracionExclusion8100(
+                'Configuracion 8100 caducada; refrescar antes de consultar')
+        try:
+            intervalos = json.loads(actual[1])
+            if not isinstance(intervalos, list) or not intervalos:
+                raise ValueError('Intervalos vacios')
+        except (TypeError, ValueError):
+            raise SinConfiguracionExclusion8100('Configuracion 8100 mal serializada')
+        # PostgreSQL realiza el cambio horario con su base IANA; el instante
+        # se toma del reloj de BD (UTC), no de la zona local del worker.
+        dbcr.execute("SELECT (%s::timestamp AT TIME ZONE 'UTC' AT TIME ZONE %s)::time",
+                     (ahora, zona))
+        hora_local = dbcr.fetchone()[0]
+        from giscedata_omie_api.giscedata_omie_siom_exclusion_rules import consulta_excluida
+        ventana = consulta_excluida(intervalos, codigo, hora_local)
+        if ventana is not None:
+            raise ConsultaExcluidaOMIE(codigo, ventana, zona)
+
     def _reservar(self, cr, uid, consulta, exigir_configuracion=False, margen_ms=500,
                  minimo_local_ms=MINIMO_LOCAL_SIN_8101_MS):
         """Transaccion corta: lock -> leer -> comprobar -> insertar -> commit.
@@ -195,6 +281,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                 limite = minimo_local_ms
             dbcr.execute("SELECT clock_timestamp() AT TIME ZONE 'UTC'")
             ahora = _fecha_pg_utc(dbcr.fetchone()[0])
+            self._comprobar_exclusion_8100(dbcr, codigo, ahora)
             dbcr.execute('''
                 SELECT fecha_intento, estado
                   FROM giscedata_omie_siom_query_execution

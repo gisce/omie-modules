@@ -8,6 +8,7 @@ import hashlib
 import importlib
 import json
 import os
+from datetime import time
 import sys
 import types
 import unittest
@@ -49,6 +50,7 @@ class FaseB8100Tests(unittest.TestCase):
         nombres = ('giscedata_omie_api', 'osv', 'tools', 'tools.translate',
                    'zeep', 'zeep.helpers',
                    'giscedata_omie_api.giscedata_omie_siom_exclusion_diagnostic',
+                   'giscedata_omie_api.giscedata_omie_siom_exclusion_rules',
                    'giscedata_omie_api.giscedata_omie_siom_exclusion_observation_parser',
                    'giscedata_omie_api.giscedata_omie_siom_exclusion_observation',
                    'giscedata_omie_api.giscedata_omie_siom_query_execution',
@@ -80,6 +82,8 @@ class FaseB8100Tests(unittest.TestCase):
         zeep.helpers = helpers
         sys.modules['zeep'] = zeep
         sys.modules[helpers.__name__] = helpers
+        cls.rules = importlib.import_module(
+            'giscedata_omie_api.giscedata_omie_siom_exclusion_rules')
         cls.parser = importlib.import_module(
             'giscedata_omie_api.giscedata_omie_siom_exclusion_observation_parser')
         cls.observation = importlib.import_module(
@@ -241,6 +245,149 @@ class FaseB8100Tests(unittest.TestCase):
         with self.assertRaises(self.parser.Formato8100NoReconocido):
             self.record.registrar_observacion_8100(None, 1)
         self.assertEqual(self.created, [])
+
+
+    def _fila_real(self, codigo=3004, inicio='10:00:00', fin='10:15:00',
+                   acceso='AMBAS'):
+        # Contrato exacto observado en la respuesta real de pruebas7.
+        return {'_value_1': [
+            {'Fec': None, 'Feh': None, 'Hor': None,
+             'Num': {'n': 'CdConsult', 'v': str(codigo)}, 'Txt': None},
+            {'Fec': None, 'Feh': None,
+             'Hor': {'n': 'HoraIni', 'v': inicio},
+             'Num': None, 'Txt': {'n': 'Titulo', 'v': 'Consulta real'}},
+            {'Fec': None, 'Feh': None,
+             'Hor': {'n': 'HoraFin', 'v': fin}, 'Num': None, 'Txt': None},
+            {'Txt': {'n': 'TipoAcceso', 'v': acceso}},
+        ]}
+
+    def test_parser_8100_real_y_extremos(self):
+        intervalos = self.rules.parsear_intervalos_8100(
+            respuesta([self._fila_real()]))
+        self.assertEqual(intervalos[0]['consulta'], 3004)
+        self.assertEqual(intervalos[0]['tipo_acceso'], 'AMBAS')
+        self.assertIsNone(self.rules.consulta_excluida(intervalos, 3004, '09:59:59'))
+        self.assertIsNotNone(self.rules.consulta_excluida(intervalos, 3004, '10:00:00'))
+        self.assertIsNotNone(self.rules.consulta_excluida(intervalos, 3004, time(10, 14, 59)))
+        self.assertIsNone(self.rules.consulta_excluida(intervalos, 3004, '10:15:00'))
+        self.assertIsNone(self.rules.consulta_excluida(intervalos, 5222, '10:05:00'))
+
+    def test_reloj_postgresql_con_microsegundos_y_limites_exactos(self):
+        intervalos = self.rules.parsear_intervalos_8100(
+            respuesta([self._fila_real()]))
+        # Ventana diaria [10:00:00, 10:15:00); respetar microsegundos.
+        self.assertIsNone(self.rules.consulta_excluida(
+            intervalos, 3004, time(9, 59, 59, 999999)))
+        self.assertIsNotNone(self.rules.consulta_excluida(
+            intervalos, 3004, time(10, 0, 0, 1)))
+        self.assertIsNotNone(self.rules.consulta_excluida(
+            intervalos, 3004, time(10, 14, 59, 999999)))
+        self.assertIsNone(self.rules.consulta_excluida(
+            intervalos, 3004, time(10, 15, 0, 1)))
+        # El contrato de la respuesta OMIE no se relaja.
+        with self.assertRaises(self.rules.Formato8100NoReconocido):
+            self.rules.parsear_intervalos_8100(respuesta([
+                self._fila_real(inicio=time(10, 0, 0, 1))]))
+
+    def test_parser_8100_ventana_que_cruza_medianoche(self):
+        intervalos = self.rules.parsear_intervalos_8100(
+            respuesta([self._fila_real(inicio='23:55:00', fin='00:05:00')]))
+        self.assertTrue(self.rules.consulta_excluida(intervalos, 3004, '23:59:59'))
+        self.assertTrue(self.rules.consulta_excluida(intervalos, 3004, '00:00:00'))
+        self.assertFalse(self.rules.consulta_excluida(intervalos, 3004, '00:05:00'))
+
+    def test_parser_8100_rechaza_columna_duplicada_o_acceso_desconocido(self):
+        r = self._fila_real()
+        r['_value_1'].append({'Txt': {'n': 'Titulo', 'v': 'duplicado'}})
+        with self.assertRaises(self.rules.Formato8100NoReconocido):
+            self.rules.parsear_intervalos_8100(respuesta([r]))
+        with self.assertRaises(self.rules.Formato8100NoReconocido):
+            self.rules.parsear_intervalos_8100(
+                respuesta([self._fila_real(acceso='AGENTE')]))
+
+    def test_observacion_real_guarda_intervalos_normalizados(self):
+        self._mock_controller(respuesta([self._fila_real()]))
+        result = self.record.registrar_observacion_8100(None, 1)
+        self.assertFalse(result['reglas_activadas'])
+        self.assertEqual(self.created[0]['interpretacion'], 'valida')
+        self.assertEqual(json.loads(self.created[0]['intervalos_json'])[0]['inicio'],
+                         '10:00:00')
+
+    def test_observacion_desconocida_sigue_solo_diagnostico(self):
+        self._mock_controller(respuesta([fila()]))
+        self.record.registrar_observacion_8100(None, 1)
+        self.assertEqual(self.created[0]['interpretacion'], 'no_interpretable')
+        self.assertFalse(self.created[0]['intervalos_json'])
+
+    def _fake_db_exclusion(self, estado='valida', viejo=None):
+        registro = self.parser.preparar_observacion_8100(
+            respuesta([self._fila_real()]))
+        fecha = datetime(2026, 11, 3, 10, 0)
+        class DB(object):
+            def __init__(self):
+                self.sql = []
+                self.result = None
+            def execute(self, statement, params=()):
+                sql = ' '.join(statement.lower().split())
+                self.sql.append((sql, params))
+                if 'where interpretacion = ' in sql:
+                    self.result = (('valida', registro['intervalos_json'], fecha),) if viejo else ()
+                elif 'select interpretacion, intervalos_json' in sql:
+                    self.result = ((estado, registro['intervalos_json'], fecha),)
+                elif '::time' in sql:
+                    self.result = ((time(10, 7, 0, 345678),),)
+                else:
+                    raise AssertionError('SQL inesperado ' + sql)
+            def fetchone(self):
+                row = self.result[0] if self.result else None
+                self.result = ()
+                return row
+        return DB()
+
+    def test_bloqueo_8100_opt_in_y_sin_soap(self):
+        obj = self.execution.GiscedataOmieSiomQueryExecution()
+        db = self._fake_db_exclusion()
+        original = dict((k, os.environ.get(k)) for k in (
+            'SIOM_8100_APPLY', 'SIOM_8100_TIMEZONE'))
+        try:
+            os.environ['SIOM_8100_APPLY'] = 'YES'
+            os.environ['SIOM_8100_TIMEZONE'] = 'Europe/Madrid'
+            with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
+                obj._comprobar_exclusion_8100(db, 3004, datetime(2026, 11, 3, 10, 7))
+            self.assertIsNone(obj._comprobar_exclusion_8100(
+                self._fake_db_exclusion(), 5222, datetime(2026, 11, 3, 10, 7)))
+        finally:
+            for key, val in original.items():
+                if val is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = val
+
+    def test_bloqueo_8100_vacio_reutiliza_anterior_y_sin_zona_falla(self):
+        obj = self.execution.GiscedataOmieSiomQueryExecution()
+        original = dict((k, os.environ.get(k)) for k in (
+            'SIOM_8100_APPLY', 'SIOM_8100_TIMEZONE'))
+        try:
+            os.environ['SIOM_8100_APPLY'] = 'YES'
+            os.environ.pop('SIOM_8100_TIMEZONE', None)
+            with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
+                obj._comprobar_exclusion_8100(
+                    self._fake_db_exclusion(), 3004, datetime(2026, 11, 3, 10, 7))
+            os.environ['SIOM_8100_TIMEZONE'] = 'Europe/Madrid'
+            with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
+                obj._comprobar_exclusion_8100(
+                    self._fake_db_exclusion('vacia', viejo=True), 3004,
+                    datetime(2026, 11, 3, 10, 7))
+            with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
+                obj._comprobar_exclusion_8100(
+                    self._fake_db_exclusion(), 3004,
+                    datetime(2026, 11, 3, 12, 7))  # snapshot caducado
+        finally:
+            for key, val in original.items():
+                if val is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = val
 
 
 if __name__ == '__main__':

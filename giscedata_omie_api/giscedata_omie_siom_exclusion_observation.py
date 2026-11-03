@@ -16,7 +16,7 @@ from giscedata_omie_api.giscedata_omie_siom_exclusion_observation_parser import 
 
 class GiscedataOmieSiomExclusionObservation(osv.osv):
     _name = 'giscedata.omie.siom.exclusion.observation'
-    _description = 'Historial de observaciones SIOM 8100 (sin reglas activas)'
+    _description = 'Observaciones y configuracion 8100 (activacion explicita)'
     _rec_name = 'fecha_consulta'
     _order = 'fecha_consulta desc, id desc'
 
@@ -41,6 +41,7 @@ class GiscedataOmieSiomExclusionObservation(osv.osv):
         return {
             'observacion_id': observacion_id,
             'estado': valores['estado'],
+            'interpretacion': valores['interpretacion'],
             'total_filas': valores['total_filas'],
             'huella_sha256': valores['huella_sha256'],
             'reglas_activadas': False,
@@ -53,6 +54,14 @@ class GiscedataOmieSiomExclusionObservation(osv.osv):
             ('vacia', 'Sin filas'), ('con_datos', 'Filas recibidas')],
             'Resultado', required=True, readonly=True),
         'total_filas': fields.integer('Número de filas', readonly=True),
+        'interpretacion': fields.selection([
+            ('valida', 'Intervalos interpretados'),
+            ('vacia', 'Respuesta vacía; reglas anteriores intactas'),
+            ('no_interpretable', 'Contrato no reconocido'),
+        ], 'Interpretación', readonly=True),
+        'intervalos_json': fields.text('Intervalos normalizados (JSON)', readonly=True),
+        'error_interpretacion': fields.char('Error de interpretación', size=256,
+                                            readonly=True),
         'columnas_json': fields.text('Columnas y tipos (JSON)', readonly=True),
         'muestras_json': fields.text('Muestras (JSON)', readonly=True),
         'respuesta_json': fields.text('Evidencia ENCOL original (JSON)', readonly=True),

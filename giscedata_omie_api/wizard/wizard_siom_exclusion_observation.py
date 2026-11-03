@@ -45,9 +45,12 @@ class WizardSiomExclusionObservation(osv.osv_memory):
         if resultado['estado'] == 'vacia':
             mensaje = (_('OMIE ha respondido sin filas. NO implica ausencia de '
                          'períodos de exclusión; no se modifican reglas.'))
+        elif resultado.get('interpretacion') == 'valida':
+            mensaje = (_('Intervalos 8100 normalizados y guardados correctamente. '
+                         'El bloqueo operativo sigue desactivado por defecto.'))
         else:
-            mensaje = (_('Filas registradas para analizar su estructura. '
-                         'No se han activado restricciones.'))
+            mensaje = (_('Evidencia almacenada, pero el contrato no se ha '
+                         'podido interpretar. No activar el bloqueo 8100.'))
         mensaje += ('\nObservación: %(observacion_id)s'
                     '\nFilas: %(total_filas)s'
                     '\nSHA-256: %(huella_sha256)s') % resultado
