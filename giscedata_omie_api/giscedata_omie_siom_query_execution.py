@@ -72,9 +72,10 @@ class RechazoExclusionOMIE(Exception):
         self.consulta = consulta
         self.detalle = detalle
         self.refrescada = refrescada
-        Exception.__init__(self, 'OMIE rechazo por exclusion la consulta %s: %s. '
-                           '8100 actualizada: %s. No se reintenta.' %
-                           (consulta, detalle, 'si' if refrescada else 'no'))
+        Exception.__init__(self, u'OMIE rechazo por exclusion la consulta %s: %s. '
+                           u'8100 actualizada: %s. No se reintenta.' %
+                           (consulta, _texto_unicode(detalle),
+                            'si' if refrescada else 'no'))
 
 
 class ConsultaSIOMPendiente(Exception):
@@ -87,8 +88,8 @@ class RechazoFrecuenciaOMIE(Exception):
     def __init__(self, consulta, detalle):
         self.consulta = consulta
         self.detalle = detalle
-        Exception.__init__(self, 'OMIE rechazo por frecuencia la consulta %s: %s' %
-                           (consulta, detalle))
+        Exception.__init__(self, u'OMIE rechazo por frecuencia la consulta %s: %s' %
+                           (consulta, _texto_unicode(detalle)))
 
 
 # Los codigos concretos de rechazo de OMIE aun no estan documentados en nuestro
@@ -101,6 +102,20 @@ except NameError:  # Python 3
     text_type = str
     string_types = (str,)
     long_type = int
+
+
+def _texto_unicode(valor):
+    """Conserva mensajes UTF-8 de OMIE sin depender del ASCII de Python 2."""
+    if isinstance(valor, bytes):
+        return valor.decode('utf-8', 'replace')
+    if isinstance(valor, Exception) and len(valor.args) == 1:
+        return _texto_unicode(valor.args[0])
+    try:
+        return text_type(valor)
+    except UnicodeDecodeError:
+        # Python 2: unicode(Exception) puede fallar si args contiene UTF-8.
+        return str(valor).decode('utf-8', 'replace')
+
 
 _FRECUENCIA_TXT = re.compile(
     u'(?:tiempo\\s+m[ií]nimo|intervalo\\s+m[ií]nimo|frecuencia\\s+de\\s+consultas|'
@@ -131,17 +146,17 @@ def _rechazo_exclusion_en_respuesta(respuesta, codigos=None):
     for item in respuestas:
         if not isinstance(item, dict):
             continue
-        codigo = text_type(_valor_siOM(item.get('CodigoRespuesta')) or '').strip()
+        codigo = _texto_unicode(_valor_siOM(item.get('CodigoRespuesta')) or '').strip()
         if not codigo or codigo == '0':
             continue
         textos = item.get('TextoRespuesta') or []
         if not isinstance(textos, (list, tuple)):
             textos = [textos]
-        mensaje = u' '.join(text_type(_valor_siOM(v) or u'') for v in textos)
+        mensaje = u' '.join(_texto_unicode(_valor_siOM(v) or u'') for v in textos)
         if codigo and codigo in (codigos or ()):  # Solo codigos confirmados por OMIE
             return 'CodigoRespuesta=%s' % codigo[:64]
         if _EXCLUSION_TXT.search(mensaje):
-            return ('CodigoRespuesta=%s; %s' % (codigo[:64], mensaje[:150]))
+            return (u'CodigoRespuesta=%s; %s' % (codigo[:64], mensaje[:150]))
     return None
 
 
@@ -149,7 +164,7 @@ def _rechazo_exclusion_en_excepcion(exc):
     """Solo Fault SOAP explicito; nunca timeout, transporte ni HTTP 403."""
     if exc.__class__.__name__ != 'Fault':
         return None
-    mensaje = text_type(exc)
+    mensaje = _texto_unicode(exc)
     if _EXCLUSION_TXT.search(mensaje):
         return mensaje[:180]
     return None
@@ -183,16 +198,16 @@ def _rechazo_en_respuesta(respuesta, codigos=None):
         if not isinstance(item, dict):
             continue
         codigo = _valor_siOM(item.get('CodigoRespuesta'))
-        codigo = text_type(codigo or '').strip()
+        codigo = _texto_unicode(codigo or '').strip()
         textos = item.get('TextoRespuesta') or []
         if not isinstance(textos, (tuple, list)):
             textos = [textos]
-        texto = u' '.join(text_type(_valor_siOM(t) or u'') for t in textos)
+        texto = u' '.join(_texto_unicode(_valor_siOM(t) or u'') for t in textos)
         if codigo and codigo in (codigos or ()):
             return 'CodigoRespuesta=%s' % codigo
         # Evitamos reintentar una consulta marcada como correcta (Codigo=0).
         if codigo != '0' and _FRECUENCIA_TXT.search(texto + ' ' + codigo):
-            return 'CodigoRespuesta=%s; %s' % (codigo[:64], texto[:150])
+            return u'CodigoRespuesta=%s; %s' % (codigo[:64], texto[:150])
     return None
 
 
@@ -203,7 +218,7 @@ def _rechazo_en_excepcion(exc):
         return 'HTTP 429'
     # Fault SOAP con codigo o texto expreso, no cualquier error de transporte.
     if exc.__class__.__name__ == 'Fault':
-        texto = text_type(exc)
+        texto = _texto_unicode(exc)
         if _FRECUENCIA_TXT.search(texto):
             return texto[:180]
     return None
@@ -240,10 +255,10 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
     def _comprobar_exclusion_8100(self, dbcr, codigo, ahora):
         """Control 8100 opcional, bajo el lock de la misma consulta.
 
-        NO habilitar hasta confirmar con OMIE zona horaria, recurrencia,
-        TipoAcceso=AMBAS, extremo fin y alcance del snapshot ENCOL.
-        Solo se lee la configuracion confirmada en BDD; nunca se consulta
-        a OMIE dentro de esta transaccion corta.
+        Recurrencia diaria, acceso WEB/WS/AMBAS y HoraFin incluida han sido
+        confirmados por OMIE. El desfase UTC+01:00 sigue siendo provisional:
+        no habilitar en produccion hasta ratificar la zona horaria.
+        No se llama a OMIE dentro de esta transaccion corta.
         """
         activacion = os.environ.get('SIOM_8100_APPLY', 'NO')
         if activacion == 'NO':
@@ -258,7 +273,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
         zona = os.environ.get('SIOM_8100_TIMEZONE')
         if not zona:
             raise SinConfiguracionExclusion8100(
-                'Falta SIOM_8100_TIMEZONE (requiere confirmacion OMIE)')
+                'Falta SIOM_8100_TIMEZONE (desfase pendiente de OMIE)')
         try:
             antiguedad_maxima = int(os.environ.get('SIOM_8100_MAX_AGE_SECONDS', '3600'))
         except (ValueError, TypeError):
@@ -296,10 +311,23 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                 raise ValueError('Intervalos vacios')
         except (TypeError, ValueError):
             raise SinConfiguracionExclusion8100('Configuracion 8100 mal serializada')
-        # PostgreSQL realiza el cambio horario con su base IANA; el instante
-        # se toma del reloj de BD (UTC), no de la zona local del worker.
-        dbcr.execute("SELECT (%s::timestamp AT TIME ZONE 'UTC' AT TIME ZONE %s)::time",
-                     (ahora, zona))
+        # Usar el reloj UTC de PostgreSQL, no el del worker. No pasar una
+        # cadena tipo 'UTC+1' directamente a AT TIME ZONE: PostgreSQL puede
+        # interpretar los signos de desfase con convenciones POSIX.
+        fijo = re.match(r'^UTC([+-])([0-1][0-9]|2[0-3]):([0-5][0-9])$', zona)
+        if fijo:
+            minutos = int(fijo.group(2)) * 60 + int(fijo.group(3))
+            if fijo.group(1) == '-':
+                minutos = -minutos
+            dbcr.execute("SELECT (%s::timestamp + %s * INTERVAL '1 minute')::time",
+                         (ahora, minutos))
+        elif zona == 'Europe/Madrid':
+            # Conservar esta alternativa para una eventual rectificacion OMIE.
+            dbcr.execute("SELECT (%s::timestamp AT TIME ZONE 'UTC' "
+                         "AT TIME ZONE %s)::time", (ahora, zona))
+        else:
+            raise SinConfiguracionExclusion8100(
+                'Zona 8100 no admitida: usar UTC+HH:MM, UTC-HH:MM o Europe/Madrid')
         hora_local = dbcr.fetchone()[0]
         from giscedata_omie_api.giscedata_omie_siom_exclusion_rules import consulta_excluida
         ventana = consulta_excluida(intervalos, codigo, hora_local)

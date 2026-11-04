@@ -59,6 +59,31 @@ class Refresh8100Tests(unittest.TestCase):
         self.assertEqual(len(enviados), 1)
         self.assertEqual(len(refrescos), 1)
 
+    def test_texto_utf8_bytes_rechazo_exclusion(self):
+        c, enviados, estados, refrescos = self._control()
+        r = {'Respuesta': [{'CodigoRespuesta': {'v': '45'},
+                           'TextoRespuesta': {'v': u'período de exclusión'.encode('utf-8')}}]}
+        with self.assertRaises(self.execution.RechazoExclusionOMIE) as atrapado:
+            self._ejecutar(c, r, enviados, refrescos)
+        self.assertEqual(estados, ['rechazada_exclusion'])
+        self.assertEqual(len(enviados), 1)
+        self.assertEqual(len(refrescos), 1)
+        self.assertIn(u'exclusión', self.execution._texto_unicode(atrapado.exception))
+
+    def test_fault_con_bytes_utf8(self):
+        c, enviados, estados, refrescos = self._control()
+        Fault = type('Fault', (Exception,), {})
+        def llamada():
+            enviados.append(True)
+            raise Fault(u'intervalo de exclusión'.encode('utf-8'))
+        with self.assertRaises(self.execution.RechazoExclusionOMIE):
+            c.ejecutar_consulta(None, 1, 3004, llamada,
+                               sincronizacion_inicial=False,
+                               refrescar_8100=lambda cr: refrescos.append(True) or True)
+        self.assertEqual(estados, ['rechazada_exclusion'])
+        self.assertEqual(len(enviados), 1)
+        self.assertEqual(len(refrescos), 1)
+
     def test_no_reintentar_tras_refresco_fallido(self):
         c, enviados, estados, refrescos = self._control()
         r = {'Respuesta': [{'CodigoRespuesta': {'v': '55'},

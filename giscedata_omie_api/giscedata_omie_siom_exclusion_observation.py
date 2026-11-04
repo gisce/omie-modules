@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Historial y refresco de intervalos SIOM 8100.
 
-La consulta se puede actualizar sin activar los bloqueos. La aplicación de
-ventanas exige configuración explícita tras confirmar la semántica con OMIE.
+La consulta se puede actualizar sin activar los bloqueos. La zona horaria
+sigue pendiente de confirmar con OMIE, y la activacion es explicita.
 """
 from __future__ import absolute_import
 

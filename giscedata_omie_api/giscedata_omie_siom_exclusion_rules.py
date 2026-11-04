@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Contrato ENCOL 8100 observado en pruebas: parseo y evaluacion de horas.
+"""Contrato ENCOL 8100: parseo y evaluacion de exclusiones diarias.
 
-SIN zona horaria asumida: la hora de evaluacion debe corresponder al huso
-confirmado por OMIE. Se usa [inicio, fin) y se admiten cruces de medianoche.
-La activacion en el controlador permanece deshabilitada por defecto.
+OMIE ha confirmado recurrencia permanente y HoraFin incluida. La zona horaria
+esta pendiente de ratificar; la aporta el controlador de forma explicita.
+La aplicacion de ventanas permanece desactivada por defecto.
 """
 from __future__ import absolute_import
 
@@ -56,8 +56,7 @@ def _hora_texto(valor):
 def parsear_intervalos_8100(datos):
     """Devuelve la totalidad de filas validas, o falla sin resultados parciales.
 
-    Solo conocemos el tipo de acceso AMBAS. Otros tipos requieren revisar
-    la semantica oficial antes de usarlos para permitir o denegar accesos.
+    TipoAcceso admite WEB, WS/WEBSERVICE y AMBAS (confirmado por OMIE).
     """
     diagnosticar_respuesta_8100(datos)
     filas = datos['Fila']
@@ -95,9 +94,15 @@ def parsear_intervalos_8100(datos):
         titulo = campos['Titulo']
         acceso = campos['TipoAcceso']
         if (not isinstance(titulo, text_types) or not titulo or
-                len(titulo) > 256 or not isinstance(acceso, text_types) or
-                acceso != 'AMBAS'):
-            raise Formato8100NoReconocido('Titulo o TipoAcceso 8100 desconocido')
+                len(titulo) > 256 or not isinstance(acceso, text_types)):
+            raise Formato8100NoReconocido('Titulo o TipoAcceso 8100 invalido')
+        # La interfaz de OMIE usa Webservice y la documentacion abrevia WS.
+        # Normalizamos el valor, sin perder el original en respuesta_json.
+        acceso = acceso.strip().upper()
+        if acceso == 'WEBSERVICE':
+            acceso = 'WS'
+        if acceso not in ('WEB', 'WS', 'AMBAS'):
+            raise Formato8100NoReconocido('TipoAcceso 8100 desconocido')
         inicio = _hora_texto(campos['HoraIni'])
         fin = _hora_texto(campos['HoraFin'])
         if inicio == fin:
@@ -112,23 +117,27 @@ def parsear_intervalos_8100(datos):
 
 
 def consulta_excluida(intervalos, consulta, hora_local):
-    """Evaluacion pura, requiere hora LOCAL en el huso confirmado.
+    """Evalua una consulta WS con ventanas diarias de fin incluido.
 
-    La interpretacion diaria y [inicio, fin) queda pendiente de confirmacion
-    de OMIE. No usar sin activar expresamente esa semantica en produccion.
+    La precision publicada por OMIE es de segundos: por prudencia se bloquea
+    tambien cualquier fraccion del segundo final (hasta HH:MM:SS.999999).
+    La hora recibida debe estar ya convertida al huso configurado.
     """
-    # PostgreSQL devuelve time con microsegundos; las ventanas OMIE siguen
-    # usando exclusivamente horas HH:MM:SS validadas por el parser.
-    actual = _segundos(hora_local, permitir_fracciones=True)
+    # PostgreSQL entrega time con microsegundos; comparar por segundo entero
+    # evita liberar consultas a mitad del ultimo segundo incluido.
+    actual = int(_segundos(hora_local, permitir_fracciones=True))
     for fila in intervalos:
         if fila['consulta'] != consulta:
             continue
-        if fila['tipo_acceso'] != 'AMBAS':
+        acceso = fila['tipo_acceso']
+        if acceso == 'WEB':
+            continue
+        if acceso not in ('WS', 'AMBAS'):
             raise Formato8100NoReconocido('TipoAcceso no soportado para control')
         inicio, fin = _segundos(fila['inicio']), _segundos(fila['fin'])
         if inicio == fin:
             raise Formato8100NoReconocido('Ventana degenerada')
-        if ((inicio < fin and inicio <= actual < fin) or
-                (inicio > fin and (actual >= inicio or actual < fin))):
+        if ((inicio < fin and inicio <= actual <= fin) or
+                (inicio > fin and (actual >= inicio or actual <= fin))):
             return fila
     return None

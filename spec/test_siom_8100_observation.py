@@ -269,21 +269,26 @@ class FaseB8100Tests(unittest.TestCase):
         self.assertIsNone(self.rules.consulta_excluida(intervalos, 3004, '09:59:59'))
         self.assertIsNotNone(self.rules.consulta_excluida(intervalos, 3004, '10:00:00'))
         self.assertIsNotNone(self.rules.consulta_excluida(intervalos, 3004, time(10, 14, 59)))
-        self.assertIsNone(self.rules.consulta_excluida(intervalos, 3004, '10:15:00'))
+        self.assertIsNotNone(self.rules.consulta_excluida(intervalos, 3004, '10:15:00'))
+        self.assertIsNone(self.rules.consulta_excluida(intervalos, 3004, '10:15:01'))
         self.assertIsNone(self.rules.consulta_excluida(intervalos, 5222, '10:05:00'))
 
     def test_reloj_postgresql_con_microsegundos_y_limites_exactos(self):
         intervalos = self.rules.parsear_intervalos_8100(
             respuesta([self._fila_real()]))
-        # Ventana diaria [10:00:00, 10:15:00); respetar microsegundos.
+        # HoraFin incluida: se bloquea tambien el segundo 10:15:00 completo.
         self.assertIsNone(self.rules.consulta_excluida(
             intervalos, 3004, time(9, 59, 59, 999999)))
         self.assertIsNotNone(self.rules.consulta_excluida(
             intervalos, 3004, time(10, 0, 0, 1)))
         self.assertIsNotNone(self.rules.consulta_excluida(
             intervalos, 3004, time(10, 14, 59, 999999)))
-        self.assertIsNone(self.rules.consulta_excluida(
+        self.assertIsNotNone(self.rules.consulta_excluida(
             intervalos, 3004, time(10, 15, 0, 1)))
+        self.assertIsNotNone(self.rules.consulta_excluida(
+            intervalos, 3004, time(10, 15, 0, 999999)))
+        self.assertIsNone(self.rules.consulta_excluida(
+            intervalos, 3004, time(10, 15, 1, 0)))
         # El contrato de la respuesta OMIE no se relaja.
         with self.assertRaises(self.rules.Formato8100NoReconocido):
             self.rules.parsear_intervalos_8100(respuesta([
@@ -294,7 +299,8 @@ class FaseB8100Tests(unittest.TestCase):
             respuesta([self._fila_real(inicio='23:55:00', fin='00:05:00')]))
         self.assertTrue(self.rules.consulta_excluida(intervalos, 3004, '23:59:59'))
         self.assertTrue(self.rules.consulta_excluida(intervalos, 3004, '00:00:00'))
-        self.assertFalse(self.rules.consulta_excluida(intervalos, 3004, '00:05:00'))
+        self.assertTrue(self.rules.consulta_excluida(intervalos, 3004, '00:05:00'))
+        self.assertFalse(self.rules.consulta_excluida(intervalos, 3004, '00:05:01'))
 
     def test_parser_8100_rechaza_columna_duplicada_o_acceso_desconocido(self):
         r = self._fila_real()
@@ -304,6 +310,29 @@ class FaseB8100Tests(unittest.TestCase):
         with self.assertRaises(self.rules.Formato8100NoReconocido):
             self.rules.parsear_intervalos_8100(
                 respuesta([self._fila_real(acceso='AGENTE')]))
+
+    def test_tipo_acceso_web_ws_ambas_ignora_web_en_robot(self):
+        filas = [self._fila_real(inicio='10:00:00', fin='10:15:00', acceso='WEB'),
+                 self._fila_real(inicio='12:00:00', fin='12:15:00', acceso='WS'),
+                 self._fila_real(inicio='14:00:00', fin='14:15:00', acceso='Webservice'),
+                 self._fila_real(inicio='16:00:00', fin='16:15:00', acceso='AMBAS')]
+        intervalos = self.rules.parsear_intervalos_8100(respuesta(filas))
+        self.assertEqual([i['tipo_acceso'] for i in intervalos],
+                         ['WEB', 'WS', 'WS', 'AMBAS'])
+        self.assertIsNone(self.rules.consulta_excluida(
+            intervalos, 3004, '10:07:00'))
+        for hora in ('12:07:00', '14:07:00', '16:07:00'):
+            self.assertIsNotNone(self.rules.consulta_excluida(
+                intervalos, 3004, hora))
+
+    def test_solo_web_no_bloquea_ni_contamina_otras_consultas(self):
+        intervalos = self.rules.parsear_intervalos_8100(respuesta([
+            self._fila_real(codigo=3004, acceso='WEB'),
+            self._fila_real(codigo=4111, acceso='AMBAS')]))
+        self.assertIsNone(self.rules.consulta_excluida(
+            intervalos, 3004, '10:07:00'))
+        self.assertIsNotNone(self.rules.consulta_excluida(
+            intervalos, 4111, '10:07:00'))
 
     def test_observacion_real_guarda_intervalos_normalizados(self):
         self._mock_controller(respuesta([self._fila_real()]))
@@ -319,10 +348,12 @@ class FaseB8100Tests(unittest.TestCase):
         self.assertEqual(self.created[0]['interpretacion'], 'no_interpretable')
         self.assertFalse(self.created[0]['intervalos_json'])
 
-    def _fake_db_exclusion(self, estado='valida', viejo=None):
+    def _fake_db_exclusion(self, estado='valida', viejo=None,
+                           fecha=None, hora=None):
         registro = self.parser.preparar_observacion_8100(
             respuesta([self._fila_real()]))
-        fecha = datetime(2026, 11, 3, 10, 0)
+        fecha = fecha or datetime(2026, 11, 3, 10, 0)
+        hora = hora or time(10, 7, 0, 345678)
         class DB(object):
             def __init__(self):
                 self.sql = []
@@ -335,7 +366,7 @@ class FaseB8100Tests(unittest.TestCase):
                 elif 'select interpretacion, intervalos_json' in sql:
                     self.result = ((estado, registro['intervalos_json'], fecha),)
                 elif '::time' in sql:
-                    self.result = ((time(10, 7, 0, 345678),),)
+                    self.result = ((hora,),)
                 else:
                     raise AssertionError('SQL inesperado ' + sql)
             def fetchone(self):
@@ -356,6 +387,56 @@ class FaseB8100Tests(unittest.TestCase):
                 obj._comprobar_exclusion_8100(db, 3004, datetime(2026, 11, 3, 10, 7))
             self.assertIsNone(obj._comprobar_exclusion_8100(
                 self._fake_db_exclusion(), 5222, datetime(2026, 11, 3, 10, 7)))
+        finally:
+            for key, val in original.items():
+                if val is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = val
+
+    def test_desfase_fijo_utc_mas_uno_no_depende_del_horario_verano(self):
+        obj = self.execution.GiscedataOmieSiomQueryExecution()
+        original = dict((k, os.environ.get(k)) for k in (
+            'SIOM_8100_APPLY', 'SIOM_8100_TIMEZONE'))
+        try:
+            os.environ['SIOM_8100_APPLY'] = 'YES'
+            os.environ['SIOM_8100_TIMEZONE'] = 'UTC+01:00'
+            for instante in (datetime(2026, 1, 7, 9, 7),
+                             datetime(2026, 7, 7, 9, 7)):
+                db = self._fake_db_exclusion(fecha=instante)
+                with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
+                    obj._comprobar_exclusion_8100(db, 3004, instante)
+                expr, parametros = [x for x in db.sql if '::time' in x[0]][0]
+                self.assertIn("interval '1 minute'", expr)
+                self.assertEqual(parametros, (instante, 60))
+            os.environ['SIOM_8100_TIMEZONE'] = 'CEST+1'
+            with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
+                obj._comprobar_exclusion_8100(
+                    self._fake_db_exclusion(), 3004,
+                    datetime(2026, 11, 3, 10, 7))
+        finally:
+            for key, val in original.items():
+                if val is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = val
+
+    def test_controlador_8100_incluye_segundo_final(self):
+        obj = self.execution.GiscedataOmieSiomQueryExecution()
+        original = dict((k, os.environ.get(k)) for k in (
+            'SIOM_8100_APPLY', 'SIOM_8100_TIMEZONE'))
+        try:
+            os.environ['SIOM_8100_APPLY'] = 'YES'
+            os.environ['SIOM_8100_TIMEZONE'] = 'UTC+01:00'
+            fecha = datetime(2026, 11, 3, 10, 0)
+            with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
+                obj._comprobar_exclusion_8100(
+                    self._fake_db_exclusion(fecha=fecha,
+                                            hora=time(10, 15, 0, 999999)),
+                    3004, fecha)
+            self.assertIsNone(obj._comprobar_exclusion_8100(
+                self._fake_db_exclusion(fecha=fecha, hora=time(10, 15, 1)),
+                3004, fecha))
         finally:
             for key, val in original.items():
                 if val is None:
