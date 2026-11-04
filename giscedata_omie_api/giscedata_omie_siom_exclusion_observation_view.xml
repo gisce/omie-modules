@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <openerp>
   <data>
+    <menuitem id="menu_omie_siom_exclusion_observation" name="Intervalos de Exclusión" parent="menu_omie_siom_limits"
+              groups="group_giscedata_omie_oferta_r,group_giscedata_omie_oferta_w,group_giscedata_omie_oferta_u"
+              sequence="2"/>
     <record id="view_siom_exclusion_observation_tree" model="ir.ui.view">
       <field name="name">giscedata.omie.siom.exclusion.observation.tree</field>
       <field name="model">giscedata.omie.siom.exclusion.observation</field>
@@ -40,7 +43,7 @@
       <field name="view_type">form</field>
       <field name="view_mode">tree,form</field>
     </record>
-    <menuitem id="menu_siom_exclusion_observation" parent="menu_omie_siom_limits"
-              action="action_siom_exclusion_observation" sequence="30"/>
+    <menuitem id="menu_siom_exclusion_observation" parent="menu_omie_siom_exclusion_observation"
+              action="action_siom_exclusion_observation" sequence="1"/>
   </data>
 </openerp>

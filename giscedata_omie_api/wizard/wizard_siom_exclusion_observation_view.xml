@@ -36,7 +36,7 @@
       <field name="target">new</field>
     </record>
     <menuitem id="menu_wizard_siom_exclusion_observation"
-              parent="menu_omie_siom_limits" action="action_wizard_siom_exclusion_observation"
-              groups="group_giscedata_omie_oferta_u" sequence="25"/>
+              parent="menu_omie_siom_exclusion_observation" action="action_wizard_siom_exclusion_observation"
+              groups="group_giscedata_omie_oferta_u" sequence="2"/>
   </data>
 </openerp>
