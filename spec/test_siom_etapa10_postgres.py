@@ -7,6 +7,8 @@ usar contra una BBDD productiva. Tests se omiten sin la dependencia/DSN.
 from __future__ import absolute_import
 
 import importlib
+import json
+from datetime import datetime, timedelta
 import os
 import sys
 import threading
@@ -66,6 +68,10 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
                       limite_ms integer, configurada boolean,
                       estado varchar(64), detalle varchar(256),
                       usuario_conciliacion integer, motivo_conciliacion text)''' % cls.schema)
+        cr.execute('''CREATE TABLE %s.giscedata_omie_siom_exclusion_observation
+                     (id serial primary key, estado varchar(32),
+                      interpretacion varchar(32), intervalos_json text,
+                      fecha_consulta timestamp)''' % cls.schema)
         cr.execute('''CREATE TABLE %s.giscedata_omie_siom_service_execution
                      (id serial primary key, servicio varchar(100), oferta_id integer,
                       usuario_id integer, fecha_intento timestamp, fecha_fin timestamp,
@@ -126,8 +132,79 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
         conn.execute('TRUNCATE TABLE %s.giscedata_omie_siom_query_execution RESTART IDENTITY' % self.schema)
         conn.execute('TRUNCATE TABLE %s.giscedata_omie_siom_service_execution RESTART IDENTITY' % self.schema)
         conn.execute('TRUNCATE TABLE %s.giscedata_omie_siom_minimum_time' % self.schema)
+        conn.execute('TRUNCATE TABLE %s.giscedata_omie_siom_exclusion_observation' % self.schema)
         conn.execute('TRUNCATE TABLE %s.giscedata_omie_oferta' % self.schema)
         conn.close()
+
+    def test_8100_postgresql_excluye_antes_de_reservar(self):
+        """Verifica zona IANA, time con microsegundos y bloqueo previo a SOAP."""
+        variables = ('SIOM_8100_APPLY', 'SIOM_8100_TIMEZONE',
+                     'SIOM_8100_MAX_AGE_SECONDS')
+        previas = dict((k, os.environ.get(k)) for k in variables)
+        try:
+            os.environ['SIOM_8100_APPLY'] = 'YES'
+            os.environ['SIOM_8100_TIMEZONE'] = 'Europe/Madrid'
+            os.environ['SIOM_8100_MAX_AGE_SECONDS'] = '3600'
+            cur = self.root.cursor()
+            cur.execute("SELECT clock_timestamp() AT TIME ZONE 'Europe/Madrid'")
+            local = cur.fetchone()[0]
+            inicio = (local - timedelta(minutes=5)).strftime('%H:%M:%S')
+            fin = (local + timedelta(minutes=5)).strftime('%H:%M:%S')
+            intervalos = json.dumps([dict(consulta=5222, titulo='Prueba',
+                    inicio=inicio, fin=fin, tipo_acceso='AMBAS')])
+            cur.execute('''INSERT INTO %s.giscedata_omie_siom_exclusion_observation
+                (estado, interpretacion, intervalos_json, fecha_consulta)
+                VALUES ('con_datos', 'valida', %%s,
+                    clock_timestamp() AT TIME ZONE 'UTC')''' % self.schema,
+                (intervalos,))
+            cur.close()
+            with self.assertRaises(self.consultas.ConsultaExcluidaOMIE):
+                self.control.ejecutar_consulta(
+                    self.business, 7, 5222,
+                    lambda: self.fail('No debe llamar SOAP'))
+            cur = self.root.cursor()
+            cur.execute('SELECT count(*) FROM %s.giscedata_omie_siom_query_execution' %
+                        self.schema)
+            self.assertEqual(cur.fetchone()[0], 0)
+            cur.close()
+            # Otra consulta (sin restriccion) puede ejecutarse normalmente.
+            self.assertEqual(self.control.ejecutar_consulta(
+                self.business, 7, 8101, lambda: 'OK'), 'OK')
+        finally:
+            for k, v in previas.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+
+    def test_8100_postgresql_snapshot_caducado_y_8100_puede_refrescar(self):
+        variables = ('SIOM_8100_APPLY', 'SIOM_8100_TIMEZONE',
+                     'SIOM_8100_MAX_AGE_SECONDS')
+        previas = dict((k, os.environ.get(k)) for k in variables)
+        try:
+            os.environ['SIOM_8100_APPLY'] = 'YES'
+            os.environ['SIOM_8100_TIMEZONE'] = 'Europe/Madrid'
+            os.environ['SIOM_8100_MAX_AGE_SECONDS'] = '60'
+            cur = self.root.cursor()
+            cur.execute('''INSERT INTO %s.giscedata_omie_siom_exclusion_observation
+                (estado, interpretacion, intervalos_json, fecha_consulta)
+                VALUES ('con_datos', 'valida', '[]',
+                    (clock_timestamp() AT TIME ZONE 'UTC') - interval '2 minutes')'''
+                        % self.schema)
+            cur.close()
+            with self.assertRaises(self.consultas.SinConfiguracionExclusion8100):
+                self.control.ejecutar_consulta(
+                    self.business, 7, 5222,
+                    lambda: self.fail('No debe llamar SOAP'))
+            # La consulta 8100 debe poder actualizar el snapshot, aun caducado.
+            self.assertEqual(self.control.ejecutar_consulta(
+                self.business, 7, 8100, lambda: 'OK'), 'OK')
+        finally:
+            for k, v in previas.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
 
     def test_consulta_reserva_confirma_independientemente(self):
         cr = self.root.cursor()

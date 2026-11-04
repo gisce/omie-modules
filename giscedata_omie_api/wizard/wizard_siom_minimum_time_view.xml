@@ -41,8 +41,8 @@
     </record>
     <menuitem id="menu_wizard_siom_minimum_time_update"
               name="Actualizar tiempos minimos desde OMIE"
-              parent="menu_omie_siom_limits"
+              parent="menu_omie_siom_minimum_times"
               action="action_wizard_siom_minimum_time_update"
-              groups="group_giscedata_omie_oferta_u" sequence="15"/>
+              groups="group_giscedata_omie_oferta_u" sequence="3"/>
   </data>
 </openerp>

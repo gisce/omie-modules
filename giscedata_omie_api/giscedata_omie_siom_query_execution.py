@@ -5,12 +5,15 @@ La reserva se confirma ANTES de la llamada SOAP en otra transaccion.
 No altera la transaccion de negocio que pasa OpenERP.
 Reintenta SOLO rechazos explicitos de frecuencia para consultas de lectura.
 Una respuesta recibida NO implica necesariamente exito funcional OMIE.
+Los rechazos de exclusión NO se reintentan: se actualiza 8100 una sola vez.
 
 Se limita a consultas ENCOL; los envios MD/IDA requieren su propia politica.
 """
 from __future__ import absolute_import
 
 from datetime import datetime, timedelta
+import json
+import os
 from osv import osv, fields
 import logging
 import re
@@ -47,6 +50,34 @@ class TiempoMinimoNoCumplido(Exception):
         ))
 
 
+class SinConfiguracionExclusion8100(Exception):
+    """Control 8100 activo, pero sin una configuracion fiable/vigente."""
+
+
+class ConsultaExcluidaOMIE(Exception):
+    """La consulta coincide con una ventana 8100; no se ha llamado a OMIE."""
+
+    def __init__(self, consulta, ventana, zona):
+        self.consulta = consulta
+        self.ventana = ventana
+        self.zona = zona
+        Exception.__init__(self, 'Consulta %s excluida entre %s y %s (%s)' % (
+            consulta, ventana['inicio'], ventana['fin'], zona))
+
+
+class RechazoExclusionOMIE(Exception):
+    """OMIE rechazo expresamente por exclusion; no se reenvia la consulta."""
+
+    def __init__(self, consulta, detalle, refrescada):
+        self.consulta = consulta
+        self.detalle = detalle
+        self.refrescada = refrescada
+        Exception.__init__(self, u'OMIE rechazo por exclusion la consulta %s: %s. '
+                           u'8100 actualizada: %s. No se reintenta.' %
+                           (consulta, _texto_unicode(detalle),
+                            'si' if refrescada else 'no'))
+
+
 class ConsultaSIOMPendiente(Exception):
     """La misma consulta todavia tiene una solicitud SOAP en curso."""
 
@@ -57,8 +88,8 @@ class RechazoFrecuenciaOMIE(Exception):
     def __init__(self, consulta, detalle):
         self.consulta = consulta
         self.detalle = detalle
-        Exception.__init__(self, 'OMIE rechazo por frecuencia la consulta %s: %s' %
-                           (consulta, detalle))
+        Exception.__init__(self, u'OMIE rechazo por frecuencia la consulta %s: %s' %
+                           (consulta, _texto_unicode(detalle)))
 
 
 # Los codigos concretos de rechazo de OMIE aun no estan documentados en nuestro
@@ -72,9 +103,71 @@ except NameError:  # Python 3
     string_types = (str,)
     long_type = int
 
+
+def _texto_unicode(valor):
+    """Conserva mensajes UTF-8 de OMIE sin depender del ASCII de Python 2."""
+    if isinstance(valor, bytes):
+        return valor.decode('utf-8', 'replace')
+    if isinstance(valor, Exception) and len(valor.args) == 1:
+        return _texto_unicode(valor.args[0])
+    try:
+        return text_type(valor)
+    except UnicodeDecodeError:
+        # Python 2: unicode(Exception) puede fallar si args contiene UTF-8.
+        return str(valor).decode('utf-8', 'replace')
+
+
 _FRECUENCIA_TXT = re.compile(
     u'(?:tiempo\\s+m[ií]nimo|intervalo\\s+m[ií]nimo|frecuencia\\s+de\\s+consultas|'
     u'minimum\\s+(?:time|interval)|too\\s+many\\s+requests|rate\\s+limit)', re.I)
+
+
+# Solo mensajes EXPLICITAMENTE vinculados a exclusiones; no deducirlo de
+# HTTP 403, un error generico de consulta o un tiempo minimo (8101).
+_EXCLUSION_TXT = re.compile(
+    u'(?:per[ií]odos?\\s+de\\s+exclusi[oó]n|intervalos?\\s+de\\s+exclusi[oó]n|'
+    u'exclusion\\s+(?:period|window)|blackout\\s+(?:period|window))', re.I)
+
+
+def _rechazo_exclusion_en_respuesta(respuesta, codigos=None):
+    """Solo Respuesta de ENCOL; permite codigos oficiales cuando se conozcan."""
+    if respuesta is None:
+        return None
+    try:
+        from zeep.helpers import serialize_object
+        datos = serialize_object(respuesta)
+    except (ImportError, AttributeError, TypeError):
+        datos = respuesta
+    if not isinstance(datos, dict):
+        return None
+    respuestas = datos.get('Respuesta') or []
+    if isinstance(respuestas, dict):
+        respuestas = [respuestas]
+    for item in respuestas:
+        if not isinstance(item, dict):
+            continue
+        codigo = _texto_unicode(_valor_siOM(item.get('CodigoRespuesta')) or '').strip()
+        if not codigo or codigo == '0':
+            continue
+        textos = item.get('TextoRespuesta') or []
+        if not isinstance(textos, (list, tuple)):
+            textos = [textos]
+        mensaje = u' '.join(_texto_unicode(_valor_siOM(v) or u'') for v in textos)
+        if codigo and codigo in (codigos or ()):  # Solo codigos confirmados por OMIE
+            return 'CodigoRespuesta=%s' % codigo[:64]
+        if _EXCLUSION_TXT.search(mensaje):
+            return (u'CodigoRespuesta=%s; %s' % (codigo[:64], mensaje[:150]))
+    return None
+
+
+def _rechazo_exclusion_en_excepcion(exc):
+    """Solo Fault SOAP explicito; nunca timeout, transporte ni HTTP 403."""
+    if exc.__class__.__name__ != 'Fault':
+        return None
+    mensaje = _texto_unicode(exc)
+    if _EXCLUSION_TXT.search(mensaje):
+        return mensaje[:180]
+    return None
 
 
 def _valor_siOM(value):
@@ -105,16 +198,16 @@ def _rechazo_en_respuesta(respuesta, codigos=None):
         if not isinstance(item, dict):
             continue
         codigo = _valor_siOM(item.get('CodigoRespuesta'))
-        codigo = text_type(codigo or '').strip()
+        codigo = _texto_unicode(codigo or '').strip()
         textos = item.get('TextoRespuesta') or []
         if not isinstance(textos, (tuple, list)):
             textos = [textos]
-        texto = u' '.join(text_type(_valor_siOM(t) or u'') for t in textos)
+        texto = u' '.join(_texto_unicode(_valor_siOM(t) or u'') for t in textos)
         if codigo and codigo in (codigos or ()):
             return 'CodigoRespuesta=%s' % codigo
         # Evitamos reintentar una consulta marcada como correcta (Codigo=0).
         if codigo != '0' and _FRECUENCIA_TXT.search(texto + ' ' + codigo):
-            return 'CodigoRespuesta=%s; %s' % (codigo[:64], texto[:150])
+            return u'CodigoRespuesta=%s; %s' % (codigo[:64], texto[:150])
     return None
 
 
@@ -125,7 +218,7 @@ def _rechazo_en_excepcion(exc):
         return 'HTTP 429'
     # Fault SOAP con codigo o texto expreso, no cualquier error de transporte.
     if exc.__class__.__name__ == 'Fault':
-        texto = text_type(exc)
+        texto = _texto_unicode(exc)
         if _FRECUENCIA_TXT.search(texto):
             return texto[:180]
     return None
@@ -158,6 +251,88 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
         """OpenERP 5: la base actual comparte el registro, no la transacción."""
         from pooler import get_db
         return get_db(cr.dbname).cursor()
+
+    def _comprobar_exclusion_8100(self, dbcr, codigo, ahora):
+        """Control 8100 opcional, bajo el lock de la misma consulta.
+
+        Recurrencia diaria, acceso WEB/WS/AMBAS y HoraFin incluida han sido
+        confirmados por OMIE. El desfase UTC+01:00 sigue siendo provisional:
+        no habilitar en produccion hasta ratificar la zona horaria.
+        No se llama a OMIE dentro de esta transaccion corta.
+        """
+        activacion = os.environ.get('SIOM_8100_APPLY', 'NO')
+        if activacion == 'NO':
+            return
+        if activacion != 'YES':
+            raise SinConfiguracionExclusion8100(
+                'SIOM_8100_APPLY debe ser YES o NO')
+        # La consulta de refresco debe poder ejecutarse aunque la instantanea
+        # anterior haya caducado; la propia 8100 conserva su auditoria 8101.
+        if codigo == 8100:
+            return
+        zona = os.environ.get('SIOM_8100_TIMEZONE')
+        if not zona:
+            raise SinConfiguracionExclusion8100(
+                'Falta SIOM_8100_TIMEZONE (desfase pendiente de OMIE)')
+        try:
+            antiguedad_maxima = int(os.environ.get('SIOM_8100_MAX_AGE_SECONDS', '3600'))
+        except (ValueError, TypeError):
+            raise SinConfiguracionExclusion8100('SIOM_8100_MAX_AGE_SECONDS invalido')
+        if antiguedad_maxima < 60:
+            raise SinConfiguracionExclusion8100('Antiguedad maxima 8100 demasiado corta')
+        dbcr.execute('''
+            SELECT interpretacion, intervalos_json, fecha_consulta
+              FROM giscedata_omie_siom_exclusion_observation
+             ORDER BY fecha_consulta DESC, id DESC LIMIT 1
+        ''')
+        actual = dbcr.fetchone()
+        if not actual:
+            raise SinConfiguracionExclusion8100('Sin observaciones 8100')
+        if actual[0] == 'vacia':
+            # Una respuesta vacia no elimina ventanas anteriores: usamos la
+            # ultima instantanea valida, siempre dentro del maximo de edad.
+            dbcr.execute('''
+                SELECT interpretacion, intervalos_json, fecha_consulta
+                  FROM giscedata_omie_siom_exclusion_observation
+                 WHERE interpretacion = 'valida'
+                 ORDER BY fecha_consulta DESC, id DESC LIMIT 1
+            ''')
+            actual = dbcr.fetchone()
+        if not actual or actual[0] != 'valida' or not actual[1]:
+            raise SinConfiguracionExclusion8100(
+                'Sin configuracion 8100 interpretable; no se envia consulta')
+        fecha = _fecha_pg_utc(actual[2])
+        if fecha > ahora or (ahora - fecha).total_seconds() > antiguedad_maxima:
+            raise SinConfiguracionExclusion8100(
+                'Configuracion 8100 caducada; refrescar antes de consultar')
+        try:
+            intervalos = json.loads(actual[1])
+            if not isinstance(intervalos, list) or not intervalos:
+                raise ValueError('Intervalos vacios')
+        except (TypeError, ValueError):
+            raise SinConfiguracionExclusion8100('Configuracion 8100 mal serializada')
+        # Usar el reloj UTC de PostgreSQL, no el del worker. No pasar una
+        # cadena tipo 'UTC+1' directamente a AT TIME ZONE: PostgreSQL puede
+        # interpretar los signos de desfase con convenciones POSIX.
+        fijo = re.match(r'^UTC([+-])([0-1][0-9]|2[0-3]):([0-5][0-9])$', zona)
+        if fijo:
+            minutos = int(fijo.group(2)) * 60 + int(fijo.group(3))
+            if fijo.group(1) == '-':
+                minutos = -minutos
+            dbcr.execute("SELECT (%s::timestamp + %s * INTERVAL '1 minute')::time",
+                         (ahora, minutos))
+        elif zona == 'Europe/Madrid':
+            # Conservar esta alternativa para una eventual rectificacion OMIE.
+            dbcr.execute("SELECT (%s::timestamp AT TIME ZONE 'UTC' "
+                         "AT TIME ZONE %s)::time", (ahora, zona))
+        else:
+            raise SinConfiguracionExclusion8100(
+                'Zona 8100 no admitida: usar UTC+HH:MM, UTC-HH:MM o Europe/Madrid')
+        hora_local = dbcr.fetchone()[0]
+        from giscedata_omie_api.giscedata_omie_siom_exclusion_rules import consulta_excluida
+        ventana = consulta_excluida(intervalos, codigo, hora_local)
+        if ventana is not None:
+            raise ConsultaExcluidaOMIE(codigo, ventana, zona)
 
     def _reservar(self, cr, uid, consulta, exigir_configuracion=False, margen_ms=500,
                  minimo_local_ms=MINIMO_LOCAL_SIN_8101_MS):
@@ -195,6 +370,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                 limite = minimo_local_ms
             dbcr.execute("SELECT clock_timestamp() AT TIME ZONE 'UTC'")
             ahora = _fecha_pg_utc(dbcr.fetchone()[0])
+            self._comprobar_exclusion_8100(dbcr, codigo, ahora)
             dbcr.execute('''
                 SELECT fecha_intento, estado
                   FROM giscedata_omie_siom_query_execution
@@ -381,6 +557,21 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
         finally:
             dbcr.close()
 
+    def _refrescar_8100(self, cr):
+        """Actualiza en otra transaccion tras rechazo EXPLICITO de exclusion.
+
+        No autoriza a repetir la consulta rechazada. Una 8100 vacia o sin
+        interpretar no valida los limites antiguos ni los elimina.
+        """
+        try:
+            model = self.pool.get('giscedata.omie.siom.exclusion.observation')
+            resultado = model.sincronizar_8100(cr, 1)
+            return resultado['interpretacion'] == 'valida'
+        except Exception as exc:
+            _logger.warning('No se pudo actualizar SIOM 8100 tras rechazo: %s',
+                            type(exc).__name__)
+            return False
+
     def _limite_conocido(self, cr, codigo):
         dbcr = self._nueva_conexion(cr)
         try:
@@ -396,18 +587,43 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
         finally:
             dbcr.close()
 
+    def _consultar_datos_8100(self, cr, uid, context=None, client=None):
+        """ENCOL 8100 via auditoría/cadencia; una única llamada, sin reintentos."""
+        if uid != 1:
+            raise ValueError('Solo el administrador puede consultar la 8100')
+        if context is None:
+            context = {}
+        if client is None:
+            from omie import ClientOMIE
+            client = ClientOMIE()
+        solicitud = {'CodConsulta': '8100', 'Parametros': {'_value_1': []}}
+        respuesta = self.ejecutar_consulta(
+            cr, uid, 8100,
+            lambda: client.ServicioEjecucionConsultaEncolumnada(
+                MensajeEjecucionConsulta=solicitud),
+            context=context, reintentos=0)
+        from zeep.helpers import serialize_object
+        return serialize_object(respuesta)
+
+    def diagnosticar_8100(self, cr, uid, context=None, client=None):
+        """Inspección sin escritura local ni bloqueos preventivos."""
+        datos = self._consultar_datos_8100(
+            cr, uid, context=context, client=client)
+        from giscedata_omie_api.giscedata_omie_siom_exclusion_diagnostic import diagnosticar_respuesta_8100
+        return diagnosticar_respuesta_8100(datos)
+
     def ejecutar_consulta(self, cr, uid, codigo_consulta, llamada, context=None,
                           exigir_configuracion=False, reintentos=1,
                           espera_maxima_segundos=10.0, margen_ms=500,
                           codigos_frecuencia=None, dormir=None,
-                          refrescar_8101=None,
+                          refrescar_8101=None, refrescar_8100=None,
                           minimo_local_ms=MINIMO_LOCAL_SIN_8101_MS,
                           sincronizacion_inicial=True):
         """Ejecuta ENCOL; solo reintenta rechazo explicito de frecuencia.
 
+        Un rechazo explicito por exclusion actualiza 8100 sin reintentar.
         No duerme si la espera supera el presupuesto. Nunca reintenta timeouts.
-        El intento fallido queda registrado y reinicia el contador.
-        `dormir` y `refrescar_8101` inyectables para pruebas unitarias.
+        `dormir` y los refrescos son inyectables para pruebas unitarias.
         """
         if not callable(llamada):
             raise ValueError('llamada debe ser callable')
@@ -419,6 +635,21 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
         contexto = context or {}
         if codigos_frecuencia is None:
             codigos_frecuencia = contexto.get('siom_codigos_rechazo_frecuencia', ())
+        codigos_exclusion = contexto.get('siom_codigos_rechazo_exclusion', ())
+        if isinstance(codigos_exclusion, string_types):
+            raise ValueError('Codigos de exclusion: usar lista o tupla, no texto')
+        def refrescar_exclusion():
+            # No crear un ciclo de refresco cuando falla la propia consulta 8100.
+            if codigo == 8100:
+                return False
+            funcion = refrescar_8100 or self._refrescar_8100
+            try:
+                return bool(funcion(cr))
+            except Exception as exc:
+                # No ocultar el rechazo real por un fallo del refresco.
+                _logger.warning('8100 no se pudo refrescar tras rechazo: %s',
+                                type(exc).__name__)
+                return False
         codigo = _codigo_consulta(codigo_consulta)
         if sincronizacion_inicial:
             self._sincronizar_8101_inicial(cr, codigo)
@@ -456,6 +687,18 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                 except Exception:
                     _logger.exception('Error al interpretar excepcion SOAP SIOM')
                     frecuencia = None
+                try:
+                    exclusion = (_rechazo_exclusion_en_excepcion(exc)
+                                 if not frecuencia else None)
+                except Exception:
+                    _logger.exception('Error al interpretar exclusion SOAP SIOM')
+                    exclusion = None
+                if exclusion:
+                    if not self._finalizar_sin_ocultar(
+                            cr, intento, 'rechazada_exclusion', exclusion):
+                        raise exc
+                    raise RechazoExclusionOMIE(
+                        codigo, exclusion, refrescar_exclusion())
                 if frecuencia:
                     if not self._finalizar_sin_ocultar(
                             cr, intento, 'rechazada_frecuencia', frecuencia):
@@ -473,6 +716,8 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
             else:
                 try:
                     frecuencia = _rechazo_en_respuesta(respuesta, codigos_frecuencia)
+                    exclusion = (_rechazo_exclusion_en_respuesta(
+                        respuesta, codigos_exclusion) if not frecuencia else None)
                 except BaseException as exc:
                     # SOAP respondio, pero no sabemos interpretar el resultado.
                     # La consulta NO se reintenta; la evidencia es incierta.
@@ -482,8 +727,13 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                         type(exc).__name__)
                     raise exc
                 self._finalizar(cr, intento,
-                               'rechazada_frecuencia' if frecuencia else 'respondida',
-                               frecuencia or 'SOAP respondido; verificar Respuesta OMIE')
+                               ('rechazada_frecuencia' if frecuencia else
+                                'rechazada_exclusion' if exclusion else 'respondida'),
+                               frecuencia or exclusion or
+                               'SOAP respondido; verificar Respuesta OMIE')
+                if exclusion:
+                    raise RechazoExclusionOMIE(
+                        codigo, exclusion, refrescar_exclusion())
                 if not frecuencia:
                     return respuesta
                 ultimo_detalle = frecuencia
@@ -519,6 +769,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
             ('respondida', 'Respuesta SOAP recibida (no implica éxito)'),
             ('incierta', 'Fallo local/transport; resultado incierto'),
             ('rechazada_frecuencia', 'OMIE rechazo por frecuencia'),
+            ('rechazada_exclusion', 'OMIE rechazo por exclusion'),
             ('conciliada', 'Reserva cerrada manualmente (verificacion externa)'),
         ], 'Estado del intento', required=True, readonly=True),
         'detalle': fields.char('Diagnóstico local', size=256, readonly=True),
