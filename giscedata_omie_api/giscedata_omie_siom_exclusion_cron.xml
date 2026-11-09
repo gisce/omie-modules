@@ -2,7 +2,7 @@
 <openerp>
   <data noupdate="1">
     <!-- Habilitar SOLO tras configurar el certificado y el AppID del agente.
-         No activa los bloqueos 8100: SIOM_8100_APPLY sigue siendo NO. -->
+         No activa los bloqueos 8100: siom_8100_apply comienza en 0. -->
     <record id="cron_siom_actualizar_8100" model="ir.cron">
       <field name="name">OMIE SIOM - actualizar periodos 8100</field>
       <field name="user_id" ref="base.user_root"/>

@@ -13,7 +13,6 @@ from __future__ import absolute_import
 
 from datetime import datetime, timedelta
 import json
-import os
 from osv import osv, fields
 import logging
 import re
@@ -260,24 +259,26 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
         no habilitar en produccion hasta ratificar la zona horaria.
         No se llama a OMIE dentro de esta transaccion corta.
         """
-        activacion = os.environ.get('SIOM_8100_APPLY', 'NO')
-        if activacion == 'NO':
+        # Leer sobre el cursor de control: se ven cambios ya confirmados
+        # en res.config sin reiniciar workers ni usar la transaccion negocio.
+        conf = self.pool.get('res.config')
+        activacion = conf.get(dbcr, 1, 'siom_8100_apply', '0')
+        if str(activacion).strip() == '0':
             return
-        if activacion != 'YES':
-            raise SinConfiguracionExclusion8100(
-                'SIOM_8100_APPLY debe ser YES o NO')
+        if str(activacion).strip() != '1':
+            raise SinConfiguracionExclusion8100('siom_8100_apply debe ser 0 o 1')
         # La consulta de refresco debe poder ejecutarse aunque la instantanea
         # anterior haya caducado; la propia 8100 conserva su auditoria 8101.
         if codigo == 8100:
             return
-        zona = os.environ.get('SIOM_8100_TIMEZONE')
-        if not zona:
-            raise SinConfiguracionExclusion8100(
-                'Falta SIOM_8100_TIMEZONE (desfase pendiente de OMIE)')
+        zona = conf.get(dbcr, 1, 'siom_8100_timezone', 'UTC+01:00')
+        if not isinstance(zona, string_types) or not zona.strip():
+            raise SinConfiguracionExclusion8100('Falta siom_8100_timezone')
+        zona = zona.strip()
         try:
-            antiguedad_maxima = int(os.environ.get('SIOM_8100_MAX_AGE_SECONDS', '3600'))
-        except (ValueError, TypeError):
-            raise SinConfiguracionExclusion8100('SIOM_8100_MAX_AGE_SECONDS invalido')
+            antiguedad_maxima = int(conf.get(dbcr, 1, 'siom_8100_max_age_seconds', '3600'))
+        except (ValueError, TypeError, OverflowError):
+            raise SinConfiguracionExclusion8100('siom_8100_max_age_seconds invalido')
         if antiguedad_maxima < 60:
             raise SinConfiguracionExclusion8100('Antiguedad maxima 8100 demasiado corta')
         dbcr.execute('''

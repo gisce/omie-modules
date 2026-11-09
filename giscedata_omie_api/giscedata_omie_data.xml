@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data noupdate="1">
+        <record id="config_siom_8100_apply" model="res.config">
+            <field name="name">siom_8100_apply</field>
+            <field name="value">0</field>
+        </record>
+        <record id="config_siom_8100_timezone" model="res.config">
+            <field name="name">siom_8100_timezone</field>
+            <field name="value">UTC+01:00</field>
+        </record>
+        <record id="config_siom_8100_max_age_seconds" model="res.config">
+            <field name="name">siom_8100_max_age_seconds</field>
+            <field name="value">3600</field>
+        </record>
+    </data>
+</openerp>

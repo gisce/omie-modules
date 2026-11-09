@@ -375,100 +375,116 @@ class FaseB8100Tests(unittest.TestCase):
                 return row
         return DB()
 
+    def _configurar_control_8100(self, obj, valores=None):
+        class Config(object):
+            def __init__(self, vals):
+                self.valores = vals
+                self.consultas = []
+            def get(self, cr, uid, key, default=None):
+                self.consultas.append((cr, uid, key))
+                return self.valores.get(key, default)
+        class Pool(object):
+            def __init__(self, config):
+                self.config = config
+            def get(self, name):
+                assert name == 'res.config'
+                return self.config
+        config = Config(dict({'siom_8100_apply': '1',
+                              'siom_8100_timezone': 'UTC+01:00',
+                              'siom_8100_max_age_seconds': '3600'}, **(valores or {})))
+        obj.pool = Pool(config)
+        return config
+
     def test_bloqueo_8100_opt_in_y_sin_soap(self):
         obj = self.execution.GiscedataOmieSiomQueryExecution()
+        config = self._configurar_control_8100(obj)
         db = self._fake_db_exclusion()
-        original = dict((k, os.environ.get(k)) for k in (
-            'SIOM_8100_APPLY', 'SIOM_8100_TIMEZONE'))
-        try:
-            os.environ['SIOM_8100_APPLY'] = 'YES'
-            os.environ['SIOM_8100_TIMEZONE'] = 'Europe/Madrid'
-            with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
-                obj._comprobar_exclusion_8100(db, 3004, datetime(2026, 11, 3, 10, 7))
-            self.assertIsNone(obj._comprobar_exclusion_8100(
-                self._fake_db_exclusion(), 5222, datetime(2026, 11, 3, 10, 7)))
-        finally:
-            for key, val in original.items():
-                if val is None:
-                    os.environ.pop(key, None)
-                else:
-                    os.environ[key] = val
+        with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
+            obj._comprobar_exclusion_8100(db, 3004, datetime(2026, 11, 3, 10, 7))
+        self.assertTrue(config.consultas)
+        self.assertTrue(all(consulta[0] is db and consulta[1] == 1
+                            for consulta in config.consultas))
+        self.assertIsNone(obj._comprobar_exclusion_8100(
+            self._fake_db_exclusion(), 5222, datetime(2026, 11, 3, 10, 7)))
+
+    def test_res_config_desactivado_y_cambios_en_caliente(self):
+        obj = self.execution.GiscedataOmieSiomQueryExecution()
+        config = self._configurar_control_8100(obj, {'siom_8100_apply': '0'})
+        db = self._fake_db_exclusion()
+        self.assertIsNone(obj._comprobar_exclusion_8100(
+            db, 3004, datetime(2026, 11, 3, 10, 7)))
+        self.assertEqual(db.sql, [])
+        config.valores['siom_8100_apply'] = '1'
+        with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
+            obj._comprobar_exclusion_8100(
+                db, 3004, datetime(2026, 11, 3, 10, 7))
+        config.valores['siom_8100_apply'] = '0'
+        self.assertIsNone(obj._comprobar_exclusion_8100(
+            db, 3004, datetime(2026, 11, 3, 10, 7)))
+        config.valores['siom_8100_apply'] = 'YES'
+        with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
+            obj._comprobar_exclusion_8100(
+                db, 3004, datetime(2026, 11, 3, 10, 7))
 
     def test_desfase_fijo_utc_mas_uno_no_depende_del_horario_verano(self):
         obj = self.execution.GiscedataOmieSiomQueryExecution()
-        original = dict((k, os.environ.get(k)) for k in (
-            'SIOM_8100_APPLY', 'SIOM_8100_TIMEZONE'))
-        try:
-            os.environ['SIOM_8100_APPLY'] = 'YES'
-            os.environ['SIOM_8100_TIMEZONE'] = 'UTC+01:00'
-            for instante in (datetime(2026, 1, 7, 9, 7),
-                             datetime(2026, 7, 7, 9, 7)):
-                db = self._fake_db_exclusion(fecha=instante)
-                with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
-                    obj._comprobar_exclusion_8100(db, 3004, instante)
-                expr, parametros = [x for x in db.sql if '::time' in x[0]][0]
-                self.assertIn("interval '1 minute'", expr)
-                self.assertEqual(parametros, (instante, 60))
-            os.environ['SIOM_8100_TIMEZONE'] = 'CEST+1'
-            with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
-                obj._comprobar_exclusion_8100(
-                    self._fake_db_exclusion(), 3004,
-                    datetime(2026, 11, 3, 10, 7))
-        finally:
-            for key, val in original.items():
-                if val is None:
-                    os.environ.pop(key, None)
-                else:
-                    os.environ[key] = val
+        config = self._configurar_control_8100(obj)
+        for instante in (datetime(2026, 1, 7, 9, 7),
+                         datetime(2026, 7, 7, 9, 7)):
+            db = self._fake_db_exclusion(fecha=instante)
+            with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
+                obj._comprobar_exclusion_8100(db, 3004, instante)
+            expr, parametros = [x for x in db.sql if '::time' in x[0]][0]
+            self.assertIn("interval '1 minute'", expr)
+            self.assertEqual(parametros, (instante, 60))
+        config.valores['siom_8100_timezone'] = 'CEST+1'
+        with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
+            obj._comprobar_exclusion_8100(
+                self._fake_db_exclusion(), 3004,
+                datetime(2026, 11, 3, 10, 7))
 
     def test_controlador_8100_incluye_segundo_final(self):
         obj = self.execution.GiscedataOmieSiomQueryExecution()
-        original = dict((k, os.environ.get(k)) for k in (
-            'SIOM_8100_APPLY', 'SIOM_8100_TIMEZONE'))
-        try:
-            os.environ['SIOM_8100_APPLY'] = 'YES'
-            os.environ['SIOM_8100_TIMEZONE'] = 'UTC+01:00'
-            fecha = datetime(2026, 11, 3, 10, 0)
-            with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
-                obj._comprobar_exclusion_8100(
-                    self._fake_db_exclusion(fecha=fecha,
-                                            hora=time(10, 15, 0, 999999)),
-                    3004, fecha)
-            self.assertIsNone(obj._comprobar_exclusion_8100(
-                self._fake_db_exclusion(fecha=fecha, hora=time(10, 15, 1)),
-                3004, fecha))
-        finally:
-            for key, val in original.items():
-                if val is None:
-                    os.environ.pop(key, None)
-                else:
-                    os.environ[key] = val
+        self._configurar_control_8100(obj)
+        fecha = datetime(2026, 11, 3, 10, 0)
+        with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
+            obj._comprobar_exclusion_8100(
+                self._fake_db_exclusion(fecha=fecha,
+                                        hora=time(10, 15, 0, 999999)),
+                3004, fecha)
+        self.assertIsNone(obj._comprobar_exclusion_8100(
+            self._fake_db_exclusion(fecha=fecha, hora=time(10, 15, 1)),
+            3004, fecha))
 
-    def test_bloqueo_8100_vacio_reutiliza_anterior_y_sin_zona_falla(self):
+    def test_bloqueo_8100_vacio_reutiliza_anterior_y_config_invalida(self):
         obj = self.execution.GiscedataOmieSiomQueryExecution()
-        original = dict((k, os.environ.get(k)) for k in (
-            'SIOM_8100_APPLY', 'SIOM_8100_TIMEZONE'))
-        try:
-            os.environ['SIOM_8100_APPLY'] = 'YES'
-            os.environ.pop('SIOM_8100_TIMEZONE', None)
-            with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
-                obj._comprobar_exclusion_8100(
-                    self._fake_db_exclusion(), 3004, datetime(2026, 11, 3, 10, 7))
-            os.environ['SIOM_8100_TIMEZONE'] = 'Europe/Madrid'
-            with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
-                obj._comprobar_exclusion_8100(
-                    self._fake_db_exclusion('vacia', viejo=True), 3004,
-                    datetime(2026, 11, 3, 10, 7))
-            with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
-                obj._comprobar_exclusion_8100(
-                    self._fake_db_exclusion(), 3004,
-                    datetime(2026, 11, 3, 12, 7))  # snapshot caducado
-        finally:
-            for key, val in original.items():
-                if val is None:
-                    os.environ.pop(key, None)
-                else:
-                    os.environ[key] = val
+        config = self._configurar_control_8100(obj)
+        config.valores['siom_8100_timezone'] = ''
+        with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
+            obj._comprobar_exclusion_8100(
+                self._fake_db_exclusion(), 3004, datetime(2026, 11, 3, 10, 7))
+        config.valores['siom_8100_timezone'] = 'UTC+01:00'
+        with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
+            obj._comprobar_exclusion_8100(
+                self._fake_db_exclusion('vacia', viejo=True), 3004,
+                datetime(2026, 11, 3, 10, 7))
+        with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
+            obj._comprobar_exclusion_8100(
+                self._fake_db_exclusion(), 3004,
+                datetime(2026, 11, 3, 12, 7))  # snapshot caducado
+        config.valores['siom_8100_max_age_seconds'] = 'invalido'
+        with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
+            obj._comprobar_exclusion_8100(
+                self._fake_db_exclusion(), 3004,
+                datetime(2026, 11, 3, 10, 7))
+
+    def test_8100_refresco_no_necesita_snapshot_aun_con_control_activo(self):
+        obj = self.execution.GiscedataOmieSiomQueryExecution()
+        self._configurar_control_8100(obj)
+        db = self._fake_db_exclusion()
+        self.assertIsNone(obj._comprobar_exclusion_8100(
+            db, 8100, datetime(2026, 11, 3, 10, 7)))
+        self.assertEqual(db.sql, [])
 
 
 if __name__ == '__main__':
