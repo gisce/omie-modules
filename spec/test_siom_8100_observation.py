@@ -196,7 +196,8 @@ class FaseB8100Tests(unittest.TestCase):
         obj = self.execution.GiscedataOmieSiomQueryExecution()
         calls = []
         def ejecutar(cr, uid, codigo, llamada, **kwargs):
-            calls.append((codigo, kwargs['reintentos']))
+            calls.append((codigo, kwargs['reintentos'],
+                          kwargs['sincronizacion_inicial']))
             return llamada()
         obj.ejecutar_consulta = ejecutar
         class Client(object):
@@ -204,7 +205,7 @@ class FaseB8100Tests(unittest.TestCase):
                 calls.append(kwargs['MensajeEjecucionConsulta']['CodConsulta'])
                 return respuesta()
         self.assertEqual(obj._consultar_datos_8100(None, 1, client=Client())['Fila'], [])
-        self.assertEqual(calls, [(8100, 0), '8100'])
+        self.assertEqual(calls, [(8100, 0, False), '8100'])
 
     def test_diagnostico_se_mantiene_sin_persistencia(self):
         obj = self.execution.GiscedataOmieSiomQueryExecution()

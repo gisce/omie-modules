@@ -47,6 +47,97 @@ class Refresh8100Tests(unittest.TestCase):
             sincronizacion_inicial=False, reintentos=reintentos,
             refrescar_8100=lambda cr: refrescos.append(True) or True)
 
+    def test_sin_observacion_refresca_y_reserva_antes_de_soap(self):
+        c, enviados, estados, refrescos = self._control()
+        intentos = []
+        def reservar(*args, **kw):
+            intentos.append(1)
+            if len(intentos) == 1:
+                raise self.execution.ObservacionExclusion8100NoDisponible(
+                    'Sin observaciones 8100')
+            return 25
+        c._reservar = reservar
+        respuesta = {'Respuesta': []}
+        def llamada():
+            enviados.append(True)
+            return respuesta
+        self.assertEqual(c.ejecutar_consulta(
+            None, 1, 3004, llamada, sincronizacion_inicial=False,
+            reintentos=0,
+            refrescar_8100=lambda cr: refrescos.append(True) or True), respuesta)
+        self.assertEqual(len(intentos), 2)
+        self.assertEqual(len(refrescos), 1)
+        self.assertEqual(len(enviados), 1)
+        self.assertEqual(estados, ['respondida'])
+
+    def test_refresco_8100_no_valido_no_intenta_soap(self):
+        c, enviados, estados, refrescos = self._control()
+        intentos = []
+        def reservar(*args, **kw):
+            intentos.append(1)
+            raise self.execution.ObservacionExclusion8100NoDisponible(
+                'Configuracion 8100 caducada')
+        c._reservar = reservar
+        def refrescar(cr):
+            refrescos.append(True)
+            return False
+        with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
+            c.ejecutar_consulta(None, 1, 3004, lambda: enviados.append(True),
+                               sincronizacion_inicial=False, reintentos=3,
+                               refrescar_8100=refrescar)
+        self.assertEqual(len(intentos), 1)
+        self.assertEqual(len(refrescos), 1)
+        self.assertEqual(enviados, [])
+
+    def test_refresco_ok_pero_snapshot_sigue_sin_validez(self):
+        c, enviados, estados, refrescos = self._control()
+        intentos = []
+        def reservar(*args, **kw):
+            intentos.append(1)
+            raise self.execution.ObservacionExclusion8100NoDisponible(
+                'Configuracion 8100 caducada')
+        c._reservar = reservar
+        with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
+            self._ejecutar(c, None, enviados, refrescos)
+        self.assertEqual(len(intentos), 2)
+        self.assertEqual(len(refrescos), 1)
+        self.assertEqual(enviados, [])
+
+    def test_refresco_observacion_nueva_excluye_antes_de_soap(self):
+        c, enviados, estados, refrescos = self._control()
+        intentos = []
+        def reservar(*args, **kw):
+            intentos.append(1)
+            if len(intentos) == 1:
+                raise self.execution.ObservacionExclusion8100NoDisponible(
+                    'Sin observaciones 8100')
+            raise self.execution.ConsultaExcluidaOMIE(
+                3004, {'inicio': '12:00:00', 'fin': '12:15:00'}, 'UTC+01:00')
+        c._reservar = reservar
+        with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
+            self._ejecutar(c, None, enviados, refrescos)
+        self.assertEqual(len(refrescos), 1)
+        self.assertEqual(len(intentos), 2)
+        self.assertEqual(enviados, [])
+
+    def test_configuracion_invalida_no_dispara_refresco_y_8100_no_recursa(self):
+        c, enviados, estados, refrescos = self._control()
+        def reservar_invalida(*args, **kw):
+            raise self.execution.SinConfiguracionExclusion8100(
+                'siom_8100_apply debe ser 0 o 1')
+        c._reservar = reservar_invalida
+        with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
+            self._ejecutar(c, None, enviados, refrescos)
+        self.assertEqual(refrescos, [])
+        def reservar_sin_snapshot(*args, **kw):
+            raise self.execution.ObservacionExclusion8100NoDisponible(
+                'Sin observaciones 8100')
+        c._reservar = reservar_sin_snapshot
+        with self.assertRaises(self.execution.SinConfiguracionExclusion8100):
+            self._ejecutar(c, None, enviados, refrescos, codigo=8100)
+        self.assertEqual(refrescos, [])
+        self.assertEqual(enviados, [])
+
     def test_respuesta_exclusion_refresca_una_vez_y_no_reintenta(self):
         c, enviados, estados, refrescos = self._control()
         respuesta = {'Respuesta': [

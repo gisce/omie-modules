@@ -212,10 +212,58 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
         with self.assertRaises(self.consultas.SinConfiguracionExclusion8100):
             self.control.ejecutar_consulta(
                 self.business, 7, 5222,
-                lambda: self.fail('No debe llamar SOAP'))
+                lambda: self.fail('No debe llamar SOAP'),
+                refrescar_8100=lambda cr: False)
         # La consulta 8100 debe poder actualizar el snapshot, aun caducado.
         self.assertEqual(self.control.ejecutar_consulta(
             self.business, 7, 8100, lambda: 'OK'), 'OK')
+
+    def test_8100_sin_observacion_refresca_una_vez_antes_de_soap(self):
+        self._actualizar_config('siom_8100_apply', '1')
+        refrescos, llamadas = [], []
+        def refrescar(cr):
+            refrescos.append(True)
+            cursor = self.root.cursor()
+            cursor.execute('''INSERT INTO %s.giscedata_omie_siom_exclusion_observation
+                (estado, interpretacion, intervalos_json, fecha_consulta)
+                VALUES ('con_datos', 'valida', %%s,
+                    clock_timestamp() AT TIME ZONE 'UTC')''' % self.schema,
+                (json.dumps([dict(consulta=7777, titulo='Otra consulta',
+                                 inicio='10:00:00', fin='10:15:00',
+                                 tipo_acceso='AMBAS')]),))
+            cursor.close()
+            return True
+        def llamada():
+            llamadas.append(True)
+            return {'Respuesta': []}
+        self.assertEqual(self.control.ejecutar_consulta(
+            self.business, 7, 5222, llamada,
+            refrescar_8100=refrescar, reintentos=0), {'Respuesta': []})
+        self.assertEqual(len(refrescos), 1)
+        self.assertEqual(len(llamadas), 1)
+        cursor = self.root.cursor()
+        cursor.execute('SELECT estado FROM %s.giscedata_omie_siom_query_execution '
+                       'WHERE consulta=5222' % self.schema)
+        self.assertEqual(cursor.fetchall(), [('respondida',)])
+        cursor.close()
+
+    def test_8100_sin_observacion_refresco_fallido_no_reserva_ni_soap(self):
+        self._actualizar_config('siom_8100_apply', '1')
+        refrescos = []
+        def refrescar(cr):
+            refrescos.append(True)
+            return False
+        with self.assertRaises(self.consultas.SinConfiguracionExclusion8100):
+            self.control.ejecutar_consulta(
+                self.business, 7, 5222,
+                lambda: self.fail('No debe enviar SOAP'),
+                refrescar_8100=refrescar)
+        self.assertEqual(len(refrescos), 1)
+        cursor = self.root.cursor()
+        cursor.execute('SELECT count(*) FROM %s.giscedata_omie_siom_query_execution '
+                       'WHERE consulta=5222' % self.schema)
+        self.assertEqual(cursor.fetchone()[0], 0)
+        cursor.close()
 
     def test_consulta_reserva_confirma_independientemente(self):
         cr = self.root.cursor()

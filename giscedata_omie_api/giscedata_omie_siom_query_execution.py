@@ -53,6 +53,10 @@ class SinConfiguracionExclusion8100(Exception):
     """Control 8100 activo, pero sin una configuracion fiable/vigente."""
 
 
+class ObservacionExclusion8100NoDisponible(SinConfiguracionExclusion8100):
+    """Falta un snapshot util de 8100; admite un refresco previo a SOAP."""
+
+
 class ConsultaExcluidaOMIE(Exception):
     """La consulta coincide con una ventana 8100; no se ha llamado a OMIE."""
 
@@ -288,7 +292,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
         ''')
         actual = dbcr.fetchone()
         if not actual:
-            raise SinConfiguracionExclusion8100('Sin observaciones 8100')
+            raise ObservacionExclusion8100NoDisponible('Sin observaciones 8100')
         if actual[0] == 'vacia':
             # Una respuesta vacia no elimina ventanas anteriores: usamos la
             # ultima instantanea valida, siempre dentro del maximo de edad.
@@ -300,18 +304,18 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
             ''')
             actual = dbcr.fetchone()
         if not actual or actual[0] != 'valida' or not actual[1]:
-            raise SinConfiguracionExclusion8100(
+            raise ObservacionExclusion8100NoDisponible(
                 'Sin configuracion 8100 interpretable; no se envia consulta')
         fecha = _fecha_pg_utc(actual[2])
         if fecha > ahora or (ahora - fecha).total_seconds() > antiguedad_maxima:
-            raise SinConfiguracionExclusion8100(
+            raise ObservacionExclusion8100NoDisponible(
                 'Configuracion 8100 caducada; refrescar antes de consultar')
         try:
             intervalos = json.loads(actual[1])
             if not isinstance(intervalos, list) or not intervalos:
                 raise ValueError('Intervalos vacios')
         except (TypeError, ValueError):
-            raise SinConfiguracionExclusion8100('Configuracion 8100 mal serializada')
+            raise ObservacionExclusion8100NoDisponible('Configuracion 8100 mal serializada')
         # Usar el reloj UTC de PostgreSQL, no el del worker. No pasar una
         # cadena tipo 'UTC+1' directamente a AT TIME ZONE: PostgreSQL puede
         # interpretar los signos de desfase con convenciones POSIX.
@@ -559,9 +563,9 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
             dbcr.close()
 
     def _refrescar_8100(self, cr):
-        """Actualiza en otra transaccion tras rechazo EXPLICITO de exclusion.
+        """Actualiza en otra transaccion tras rechazo o falta de observacion.
 
-        No autoriza a repetir la consulta rechazada. Una 8100 vacia o sin
+        No reenvia una consulta ya enviada. Una 8100 vacia o sin
         interpretar no valida los limites antiguos ni los elimina.
         """
         try:
@@ -569,7 +573,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
             resultado = model.sincronizar_8100(cr, 1)
             return resultado['interpretacion'] == 'valida'
         except Exception as exc:
-            _logger.warning('No se pudo actualizar SIOM 8100 tras rechazo: %s',
+            _logger.warning('No se pudo actualizar SIOM 8100: %s',
                             type(exc).__name__)
             return False
 
@@ -602,7 +606,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
             cr, uid, 8100,
             lambda: client.ServicioEjecucionConsultaEncolumnada(
                 MensajeEjecucionConsulta=solicitud),
-            context=context, reintentos=0)
+            context=context, reintentos=0, sincronizacion_inicial=False)
         from zeep.helpers import serialize_object
         return serialize_object(respuesta)
 
@@ -622,7 +626,8 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                           sincronizacion_inicial=True):
         """Ejecuta ENCOL; solo reintenta rechazo explicito de frecuencia.
 
-        Un rechazo explicito por exclusion actualiza 8100 sin reintentar.
+        Una observacion 8100 ausente/caducada provoca un solo refresco
+        previo a SOAP; un rechazo explicito de OMIE NO se reintenta.
         No duerme si la espera supera el presupuesto. Nunca reintenta timeouts.
         `dormir` y los refrescos son inyectables para pruebas unitarias.
         """
@@ -648,7 +653,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
                 return bool(funcion(cr))
             except Exception as exc:
                 # No ocultar el rechazo real por un fallo del refresco.
-                _logger.warning('8100 no se pudo refrescar tras rechazo: %s',
+                _logger.warning('8100 no se pudo refrescar: %s',
                                 type(exc).__name__)
                 return False
         codigo = _codigo_consulta(codigo_consulta)
@@ -657,8 +662,22 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
         hubo_rechazo = False
         ultimo_detalle = ''
         total_dormido = 0.0
+        refresco_8100_previo = False
         for numero in range(reintentos + 1):
             try:
+                intento = self._reservar(cr, uid, codigo_consulta,
+                                         exigir_configuracion=exigir_configuracion,
+                                         margen_ms=margen_ms,
+                                         minimo_local_ms=minimo_local_ms)
+            except ObservacionExclusion8100NoDisponible:
+                # _reservar ya ha hecho rollback y soltado el advisory lock.
+                # La llamada original TODAVIA no ha salido a OMIE. Un solo
+                # refresco y una nueva comprobacion completa antes de SOAP.
+                if refresco_8100_previo:
+                    raise
+                refresco_8100_previo = True
+                if not refrescar_exclusion():
+                    raise
                 intento = self._reservar(cr, uid, codigo_consulta,
                                          exigir_configuracion=exigir_configuracion,
                                          margen_ms=margen_ms,
