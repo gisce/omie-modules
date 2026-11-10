@@ -212,6 +212,11 @@ class ControlTests(unittest.TestCase):
         kwargs.setdefault('margen_ms', 0)  # La regresion legacy comprueba cadencia exacta sin margen.
         return self.model.ejecutar_consulta(self.business, 7, codigo, self.llamada, **kwargs)
 
+    def test_estado_consulta_soporta_rechazos_largos(self):
+        tipo, args, kwargs = self.model._columns['estado']
+        self.assertEqual(tipo, 'selection')
+        self.assertGreaterEqual(kwargs.get('size', 0), len('rechazada_frecuencia'))
+
     def test_ejecuta_y_devuelve_respuesta_original(self):
         self.db.limits[5222] = (10000, 20000)
         self.assertEqual(self.ejecutar()['CodConsulta'], 5222)

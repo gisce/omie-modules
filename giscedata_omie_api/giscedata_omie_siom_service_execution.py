@@ -457,7 +457,7 @@ class GiscedataOmieSiomServiceExecution(osv.osv):
             ('reconciliada', 'Conciliacion manual documentada'),
             # Compatibilidad con registros creados antes de esta version.
             ('reservada', 'Reserva antigua: resultado desconocido'),
-        ], 'Estado', required=True, readonly=True),
+        ], 'Estado', size=32, required=True, readonly=True),
         'detalle': fields.char('Diagnostico', size=256, readonly=True),
     }
 

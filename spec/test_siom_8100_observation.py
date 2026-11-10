@@ -294,6 +294,40 @@ class FaseB8100Tests(unittest.TestCase):
             self.rules.parsear_intervalos_8100(respuesta([
                 self._fila_real(inicio=time(10, 0, 0, 1))]))
 
+    def test_reloj_postgresql_texto_con_microsegundos(self):
+        intervalos = self.rules.parsear_intervalos_8100(
+            respuesta([self._fila_real()]))
+        # OpenERP 5/psycopg2 puede devolver una cadena, no datetime.time.
+        for reloj, bloqueada in (
+                ('09:59:59.999999', False),
+                ('10:00:00.000001', True),
+                ('10:07:00.1', True),
+                ('10:15:00.999999', True),
+                ('10:15:01.000001', False),
+                ('15:43:48.763526', False)):
+            self.assertEqual(bool(self.rules.consulta_excluida(
+                intervalos, 3004, reloj)), bloqueada, reloj)
+        # No admitir fracciones en la respuesta horaria de OMIE.
+        with self.assertRaises(self.rules.Formato8100NoReconocido):
+            self.rules.parsear_intervalos_8100(respuesta([
+                self._fila_real(inicio='10:00:00.123456')]))
+        with self.assertRaises(self.rules.Formato8100NoReconocido):
+            self.rules.consulta_excluida(intervalos, 3004,
+                                        '10:07:00.1234567')
+
+    def test_controlador_8100_con_hora_textual_de_postgresql(self):
+        obj = self.execution.GiscedataOmieSiomQueryExecution()
+        self._configurar_control_8100(obj)
+        fecha = datetime(2026, 11, 3, 10, 0)
+        with self.assertRaises(self.execution.ConsultaExcluidaOMIE):
+            obj._comprobar_exclusion_8100(
+                self._fake_db_exclusion(fecha=fecha,
+                                        hora='10:15:00.763526'),
+                3004, fecha)
+        self.assertIsNone(obj._comprobar_exclusion_8100(
+            self._fake_db_exclusion(fecha=fecha, hora='15:43:48.763526'),
+            3004, fecha))
+
     def test_parser_8100_ventana_que_cruza_medianoche(self):
         intervalos = self.rules.parsear_intervalos_8100(
             respuesta([self._fila_real(inicio='23:55:00', fin='00:05:00')]))

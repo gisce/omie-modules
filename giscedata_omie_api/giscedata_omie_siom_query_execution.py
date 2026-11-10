@@ -772,7 +772,7 @@ class GiscedataOmieSiomQueryExecution(osv.osv):
             ('rechazada_frecuencia', 'OMIE rechazo por frecuencia'),
             ('rechazada_exclusion', 'OMIE rechazo por exclusion'),
             ('conciliada', 'Reserva cerrada manualmente (verificacion externa)'),
-        ], 'Estado del intento', required=True, readonly=True),
+        ], 'Estado del intento', size=32, required=True, readonly=True),
         'detalle': fields.char('Diagnóstico local', size=256, readonly=True),
         'motivo_conciliacion': fields.text('Motivo de conciliacion', readonly=True),
         'usuario_conciliacion': fields.many2one('res.users', 'Conciliado por', readonly=True)

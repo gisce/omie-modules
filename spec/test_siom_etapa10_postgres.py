@@ -10,6 +10,7 @@ import importlib
 import json
 from datetime import datetime, timedelta
 import os
+import runpy
 import sys
 import threading
 import types
@@ -85,7 +86,7 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
                      (id serial primary key, consulta integer, usuario_id integer,
                       fecha_intento timestamp, fecha_fin timestamp,
                       limite_ms integer, configurada boolean,
-                      estado varchar(64), detalle varchar(256),
+                      estado varchar(32), detalle varchar(256),
                       usuario_conciliacion integer, motivo_conciliacion text)''' % cls.schema)
         cr.execute('''CREATE TABLE %s.giscedata_omie_siom_exclusion_observation
                      (id serial primary key, estado varchar(32),
@@ -94,7 +95,7 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
         cr.execute('''CREATE TABLE %s.giscedata_omie_siom_service_execution
                      (id serial primary key, servicio varchar(100), oferta_id integer,
                       usuario_id integer, fecha_intento timestamp, fecha_fin timestamp,
-                      estado varchar(64), detalle varchar(256),
+                      estado varchar(32), detalle varchar(256),
                       id_mensaje_enviado varchar(64), version_enviada integer,
                       num_oferta_enviado integer,
                       id_remitente varchar(16), fecha_sesion varchar(10),
@@ -429,6 +430,36 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
         finally:
             a.close()
             b.close()
+
+    def test_migracion_estados_varchar16_a_varchar32(self):
+        # Reproducir ambas columnas legacy y ejecutar la migracion real.
+        con = psycopg2.connect(DSN, options='-c search_path=%s' % self.schema)
+        con.autocommit = True
+        cr = con.cursor()
+        try:
+            for tabla in ('giscedata_omie_siom_service_execution',
+                          'giscedata_omie_siom_query_execution'):
+                cr.execute('ALTER TABLE %s ALTER COLUMN estado TYPE varchar(16)' % tabla)
+            ruta = os.path.join(APP, 'migrations', '5.0.26.12',
+                                'post-0014_siom_estados_largos.py')
+            runpy.run_path(ruta)['up'](cr, '5.0.26.12')
+            cr.execute('''SELECT table_name, character_maximum_length
+                            FROM information_schema.columns
+                           WHERE table_schema = %s
+                             AND table_name IN (
+                                 'giscedata_omie_siom_service_execution',
+                                 'giscedata_omie_siom_query_execution')
+                             AND column_name = 'estado' ''', (self.schema,))
+            self.assertEqual(dict(cr.fetchall()), {
+                'giscedata_omie_siom_service_execution': 32,
+                'giscedata_omie_siom_query_execution': 32})
+            cr.execute("INSERT INTO giscedata_omie_siom_service_execution (estado) "
+                       "VALUES ('respondida_pendiente')")
+            cr.execute("INSERT INTO giscedata_omie_siom_query_execution (estado) "
+                       "VALUES ('rechazada_frecuencia'), ('rechazada_exclusion')")
+        finally:
+            cr.close()
+            con.close()
 
     def test_10d2_respuesta_sobrevive_rollback_y_se_comprueba_commit_real(self):
         # Simula un negocio que envia SOAP y pierde sus writes por rollback.

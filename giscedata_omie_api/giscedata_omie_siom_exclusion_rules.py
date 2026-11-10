@@ -18,6 +18,8 @@ COLUMNAS = {
     'HoraFin': 'Hor', 'TipoAcceso': 'Txt',
 }
 HORA = re.compile(r'^([0-2][0-9]):([0-5][0-9]):([0-5][0-9])$')
+HORA_CON_FRACCIONES = re.compile(
+    r'^([0-2][0-9]):([0-5][0-9]):([0-5][0-9])\.([0-9]{1,6})$')
 try:
     text_types = (basestring,)
 except NameError:
@@ -39,12 +41,20 @@ def _segundos(valor, permitir_fracciones=False):
     if not isinstance(valor, text_types):
         raise Formato8100NoReconocido('Hora 8100 no textual')
     match = HORA.match(valor)
+    microsegundos = 0
+    if not match and permitir_fracciones:
+        # El cursor de OpenERP 5 puede devolver ::time como texto con
+        # microsegundos, en lugar de datetime.time.
+        match = HORA_CON_FRACCIONES.match(valor)
+        if match:
+            microsegundos = int(match.group(4).ljust(6, '0'))
     if not match:
         raise Formato8100NoReconocido('Hora 8100 invalida: %r' % (valor,))
-    hora, minuto, segundo = (int(x) for x in match.groups())
+    hora, minuto, segundo = (int(x) for x in match.groups()[:3])
     if hora > 23:
         raise Formato8100NoReconocido('Hora 8100 fuera de rango')
-    return hora * 3600 + minuto * 60 + segundo
+    segundos = hora * 3600 + minuto * 60 + segundo
+    return segundos + (microsegundos / 1000000.0 if permitir_fracciones else 0)
 
 
 def _hora_texto(valor):
