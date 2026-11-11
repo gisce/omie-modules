@@ -261,22 +261,25 @@ def parse_pbc_reponse(res_casacion, magn):
         for reg in regs:
             data = regs[reg]
             period = False
-            measure = False
-            desc = False
+            measure = None
+            desc = ''
             for d in data:
                 for val in d.values():
                     if val:
                         if val['n'] == 'Periodo':
-                            period = str(val['v'])
+                            if val.get('v') not in (None, ''):
+                                period = str(val['v'])
                         elif val['n'] == 'Energia' and magn == 'E':
-                            measure = abs(float(val['v']))
+                            if val.get('v') not in (None, ''):
+                                measure = abs(float(val['v']))
                         elif val['n'] == 'Potencia' and magn == 'P':
-                            measure = abs(float(val['v']))
+                            if val.get('v') not in (None, ''):
+                                measure = abs(float(val['v']))
                         elif val['n'] == 'Descripción':
-                            desc = val['v']
+                            desc = val.get('v') or ''
                         else:
                             pass
-            if period and measure and desc:
+            if period and measure is not None:
                 res.append({'num': int(period), 'per': period, 'ctn': measure, 'desc': desc})
 
     return res
@@ -338,22 +341,25 @@ def parse_pbf_reponse(res_casacion, magn):
         for reg in regs:
             data = regs[reg]
             period = False
-            measure = False
-            desc = False
+            measure = None
+            desc = ''
             for d in data:
                 for val in d.values():
                     if val:
                         if val['n'] == 'Periodo':
-                            period = str(val['v'])
+                            if val.get('v') not in (None, ''):
+                                period = str(val['v'])
                         elif val['n'] == 'EnergiaTotal' and magn == 'E':
-                            measure = abs(float(val['v']))
+                            if val.get('v') not in (None, ''):
+                                measure = abs(float(val['v']))
                         elif val['n'] == 'PotenciaTotal' and magn == 'P':
-                            measure = abs(float(val['v']))
+                            if val.get('v') not in (None, ''):
+                                measure = abs(float(val['v']))
                         elif val['n'] == 'Descripción':
-                            desc = val['v']
+                            desc = val.get('v') or ''
                         else:
                             pass
-            if period and measure and desc:
+            if period and measure is not None:
                 res.append({'num': int(period), 'per': period, 'ctn': measure, 'desc': desc})
 
     return res
@@ -419,24 +425,27 @@ def parse_phf_reponse(res_casacion, magn):
         for reg in regs:
             data = regs[reg]
             period = False
-            measure = False
-            desc = False
+            measure = None
+            desc = ''
             for d in data:
                 for val in d.values():
                     if val:
                         if val['n'] == 'Periodo':
-                            period = str(val['v'])
+                            if val.get('v') not in (None, ''):
+                                period = str(val['v'])
                         elif val['n'] == 'Energia' and magn == 'E':
-                            measure = abs(float(val['v']))
+                            if val.get('v') not in (None, ''):
+                                measure = abs(float(val['v']))
                         elif val['n'] == 'Potencia' and magn == 'P':
-                            measure = abs(float(val['v']))
+                            if val.get('v') not in (None, ''):
+                                measure = abs(float(val['v']))
                         elif val['n'] == 'Descripción':
-                            desc = val['v']
+                            desc = val.get('v') or ''
                             if 'Q' in desc and not is_qh:
                                 is_qh = True
                         else:
                             pass
-            if period and measure and desc:
+            if period and measure is not None:
                 res.append({'num': int(period), 'per': period, 'ctn': measure, 'desc': desc})
 
     return res, is_qh
@@ -496,25 +505,28 @@ def parse_phfc_reponse(res_casacion, magn):
         for reg in regs:
             data = regs[reg]
             period = False
-            measure = False
-            desc = False
+            measure = None
+            desc = ''
             tipo_oferta = False
             for d in data:
                 for val in d.values():
                     if val:
                         if val['n'] == 'Periodo':
-                            period = str(val['v'])
+                            if val.get('v') not in (None, ''):
+                                period = str(val['v'])
                         elif val['n'] == 'TipoOferta':
                             tipo_oferta = val['v']
                         elif val['n'] == 'Energia' and magn == 'E':
-                            measure = abs(float(val['v']))
+                            if val.get('v') not in (None, ''):
+                                measure = abs(float(val['v']))
                         elif val['n'] == 'Potencia' and magn == 'P':
-                            measure = abs(float(val['v']))
+                            if val.get('v') not in (None, ''):
+                                measure = abs(float(val['v']))
                         elif val['n'] == 'Descripción':
-                            desc = val['v']
+                            desc = val.get('v') or ''
                         else:
                             pass
-            if period and measure and desc and tipo_oferta:
+            if period and measure is not None and tipo_oferta:
                 res.append({'num': int(period), 'per': period, 'ctn': measure, 'desc': desc, 'tipo_oferta': tipo_oferta})
 
     return res
