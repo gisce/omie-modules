@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+  <data>
+    <record id="view_wizard_siom_service_reconcile_form" model="ir.ui.view">
+      <field name="name">wizard.siom.service.reconcile.form</field>
+      <field name="model">wizard.siom.service.reconcile</field>
+      <field name="type">form</field>
+      <field name="arch" type="xml">
+        <form string="Conciliar envio de oferta SIOM">
+          <field name="state" invisible="1"/>
+          <group col="4" attrs="{'invisible': [('state', '!=', 'init')]}" >
+            <label string="Operacion administrativa: revise el resultado real en OMIE y confirme que el proceso emisor ha terminado. Conciliar no envia ni corrige ofertas; solo desbloquea el registro tras documentar el resultado." colspan="4"/>
+            <field name="intento_id" colspan="4" readonly="1"/>
+            <field name="servicio" readonly="1"/>
+            <field name="oferta_id" readonly="1"/>
+            <field name="estado_envio" readonly="1"/>
+            <field name="codigo_respuesta" readonly="1"/>
+            <field name="respuesta_json" colspan="4" readonly="1"/>
+            <field name="justificacion" colspan="4"/>
+            <field name="comprobado_omie" colspan="4"/>
+            <field name="proceso_terminado" colspan="4"/>
+            <group col="10">
+              <label colspan="6"/>
+              <button special="cancel" string="Cancelar" icon="gtk-cancel" colspan="2" danger="1"/>
+              <button name="conciliar" type="object" string="Conciliar envio" icon="gtk-ok" colspan="2" primary="1"/>
+            </group>
+          </group>
+          <group col="4" attrs="{'invisible': [('state', '!=', 'end')]}" >
+            <label string="Envio conciliado y registrado. La oferta no se ha reenviado." colspan="4"/>
+            <button special="cancel" string="Cerrar" icon="gtk-close" colspan="2" primary="1"/>
+          </group>
+        </form>
+      </field>
+    </record>
+  </data>
+</openerp>

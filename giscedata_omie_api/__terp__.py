@@ -26,6 +26,7 @@
     'giscedata_omie_siom_query_execution_view.xml',
     'wizard/wizard_siom_query_reconcile_view.xml',
     'giscedata_omie_siom_service_execution_view.xml',
+    'wizard/wizard_siom_service_reconcile_view.xml',
     'security/ir.model.access.csv',
   ],
   "active": False,

@@ -6,7 +6,8 @@
             <field name="model">giscedata.omie.siom.service.execution</field>
             <field name="type">tree</field>
             <field name="arch" type="xml">
-                <tree string="Servicios SIOM">
+                <tree string="Servicios SIOM"
+                      colors="red:estado=='incierta';red:estado=='enviando';red:estado=='reservada';red:estado=='respondida_pendiente'">
                     <field name="servicio"/>
                     <field name="oferta_id"/>
                     <field name="usuario_id"/>
@@ -44,6 +45,11 @@
                     <field name="detalle"/>
                     <field name="id_respuesta"/>
                     <field name="respuesta_json"/>
+                    <button name="abrir_asistente_conciliacion" type="object"
+                            string="Conciliar envio" icon="gtk-ok"
+                            groups="group_giscedata_omie_oferta_u"
+                            attrs="{'invisible': [('estado', 'not in', ('incierta', 'enviando', 'reservada', 'respondida_pendiente'))]}"
+                            primary="1"/>
                 </form>
             </field>
         </record>
@@ -56,5 +62,17 @@
         <menuitem id="menu_siom_service_execution" parent="menu_omie_siom_limits"
                             name="Registro de servicios SIOM" sequence="40"
                             action="action_siom_service_execution" groups="group_giscedata_omie_oferta_u"/>
+
+        <record id="action_siom_service_execution_not_conciled" model="ir.actions.act_window">
+            <field name="name">Registro de servicios SIOM sin conciliar</field>
+            <field name="res_model">giscedata.omie.siom.service.execution</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+            <field name="domain">[('estado','in',('incierta', 'enviando', 'reservada', 'respondida_pendiente'))]</field>
+        </record>
+        <menuitem id="menu_siom_service_execution_not_conciled" parent="menu_siom_service_execution"
+                  name="Registro de servicios SIOM sin conciliar" sequence="40"
+                  action="action_siom_service_execution_not_conciled" groups="group_giscedata_omie_oferta_u"
+        />
     </data>
 </openerp>
