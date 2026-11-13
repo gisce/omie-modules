@@ -7,7 +7,7 @@
             <field name="type">tree</field>
             <field name="arch" type="xml">
                 <tree string="Servicios SIOM"
-                      colors="red:estado=='incierta';red:estado=='enviando';red:estado=='reservada';red:estado=='respondida_pendiente'">
+                      colors="red:estado=='incierta';red:estado=='enviando';red:estado=='reservada';blue:estado=='respondida_pendiente'">
                     <field name="servicio"/>
                     <field name="oferta_id"/>
                     <field name="usuario_id"/>
