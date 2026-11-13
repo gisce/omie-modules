@@ -112,6 +112,12 @@ class GiscedataOmieCasacion(osv.osv):
             else:
                 casation, is_qh = parse_phf_reponse(res_casacion_dict, params['uni_medida'])
 
+            if not casation:
+                cron_wst.log(logging.ERROR, msg="La resposta de cassació no conté períodes vàlids.",
+                             status='Failed')
+                raise osv.except_osv('Error', _(
+                    "La consulta de cassació no ha retornat cap període vàlid."))
+
             # Preventive delete of casation with same date, type, session, class and measure
             search_params = [('id_unidad', '=', params['id_unidad']),
                              ('tipo_mercado', '=', params['tipo_mercado']),
@@ -308,6 +314,12 @@ class GiscedataOmieCasacionContinua(osv.osv):
 
             parsed_casation = parse_phfc_reponse(res_dict, params['uni_medida'])
 
+            if not parsed_casation:
+                cron_wst.log(logging.ERROR, msg="La resposta de cassació no conté períodes vàlids.",
+                             status='Failed')
+                raise osv.except_osv('Error', _(
+                    "La consulta de cassació no ha retornat cap període vàlid."))
+
             # Eliminar cassacions anteriors
             search_params = [('id_unidad', '=', params['id_unidad']),
                              ('fecha_ronda', '=', params['fecha_ronda']),
@@ -418,6 +430,12 @@ class GiscedataOmieProgramaBaseCasacion(osv.osv):
             # Convert to QH if needed
             if params['fecha_ronda'] < _OMIE_DAILY_QH_DATE_START:
                 parsed_casation = convert_casation_to_qh(parsed_casation)
+
+            if not parsed_casation:
+                cron_wst.log(logging.ERROR, msg="La resposta de cassació no conté períodes vàlids.",
+                             status='Failed')
+                raise osv.except_osv('Error', _(
+                    "La consulta de cassació no ha retornat cap període vàlid."))
 
             # Eliminar cassacions anteriors
             search_params = [('id_unidad', '=', params['id_unidad']),

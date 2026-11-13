@@ -7,7 +7,10 @@ usar contra una BBDD productiva. Tests se omiten sin la dependencia/DSN.
 from __future__ import absolute_import
 
 import importlib
+import json
+from datetime import datetime, timedelta
 import os
+import runpy
 import sys
 import threading
 import types
@@ -44,6 +47,23 @@ except ImportError:
     psycopg2 = None
 
 
+class FakePgResConfig(object):
+    """Lecturas reales en la misma conexion PostgreSQL que la reserva."""
+    def get(self, cr, uid, name, default=None):
+        cr.execute('SELECT value FROM res_config WHERE name = %s', (name,))
+        row = cr.fetchone()
+        return row[0] if row is not None else default
+
+
+class FakePgConfigPool(object):
+    def __init__(self):
+        self.config = FakePgResConfig()
+    def get(self, name):
+        if name != 'res.config':
+            raise AssertionError(name)
+        return self.config
+
+
 class PostgreSQLIntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -57,6 +77,8 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
         cls.root.autocommit = True
         cr = cls.root.cursor()
         cr.execute('CREATE SCHEMA ' + cls.schema)
+        cr.execute('''CREATE TABLE %s.res_config
+                     (name varchar(128) primary key, value text)''' % cls.schema)
         cr.execute('''CREATE TABLE %s.giscedata_omie_siom_minimum_time
                       (consulta integer primary key, tiempo_agente_ms integer,
                        tiempo_certificado_ms integer)''' % cls.schema)
@@ -64,12 +86,16 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
                      (id serial primary key, consulta integer, usuario_id integer,
                       fecha_intento timestamp, fecha_fin timestamp,
                       limite_ms integer, configurada boolean,
-                      estado varchar(64), detalle varchar(256),
+                      estado varchar(32), detalle varchar(256),
                       usuario_conciliacion integer, motivo_conciliacion text)''' % cls.schema)
+        cr.execute('''CREATE TABLE %s.giscedata_omie_siom_exclusion_observation
+                     (id serial primary key, estado varchar(32),
+                      interpretacion varchar(32), intervalos_json text,
+                      fecha_consulta timestamp)''' % cls.schema)
         cr.execute('''CREATE TABLE %s.giscedata_omie_siom_service_execution
                      (id serial primary key, servicio varchar(100), oferta_id integer,
                       usuario_id integer, fecha_intento timestamp, fecha_fin timestamp,
-                      estado varchar(64), detalle varchar(256),
+                      estado varchar(32), detalle varchar(256),
                       id_mensaje_enviado varchar(64), version_enviada integer,
                       num_oferta_enviado integer,
                       id_remitente varchar(16), fecha_sesion varchar(10),
@@ -120,14 +146,124 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
         self.ofertas._nueva_conexion = lambda cr: PgCursor(
             psycopg2.connect(DSN, options='-c search_path=%s' % self.schema))
         self.control = self.consultas.GiscedataOmieSiomQueryExecution()
+        self.control.pool = FakePgConfigPool()
         self.control._nueva_conexion = self.ofertas._nueva_conexion
         self.control._sincronizar_8101_inicial = lambda cr, codigo: None
         conn = self.root.cursor()
+        conn.execute('TRUNCATE TABLE %s.res_config' % self.schema)
+        conn.execute('''INSERT INTO %s.res_config (name, value) VALUES
+                     ('siom_8100_apply', '0'),
+                     ('siom_8100_timezone', 'UTC+01:00'),
+                     ('siom_8100_max_age_seconds', '3600')''' % self.schema)
         conn.execute('TRUNCATE TABLE %s.giscedata_omie_siom_query_execution RESTART IDENTITY' % self.schema)
         conn.execute('TRUNCATE TABLE %s.giscedata_omie_siom_service_execution RESTART IDENTITY' % self.schema)
         conn.execute('TRUNCATE TABLE %s.giscedata_omie_siom_minimum_time' % self.schema)
+        conn.execute('TRUNCATE TABLE %s.giscedata_omie_siom_exclusion_observation' % self.schema)
         conn.execute('TRUNCATE TABLE %s.giscedata_omie_oferta' % self.schema)
         conn.close()
+
+    def _actualizar_config(self, nombre, valor):
+        cr = self.root.cursor()
+        cr.execute('UPDATE %s.res_config SET value = %%s WHERE name = %%s' %
+                   self.schema, (valor, nombre))
+        self.assertEqual(cr.rowcount, 1)
+        cr.close()
+
+    def test_8100_postgresql_excluye_antes_de_reservar(self):
+        '''Config viva en PostgreSQL, UTC+1 fijo, bloqueo previo a SOAP.'''
+        self._actualizar_config('siom_8100_apply', '1')
+        cur = self.root.cursor()
+        cur.execute("SELECT clock_timestamp() AT TIME ZONE 'UTC' + INTERVAL '1 hour'")
+        local = cur.fetchone()[0]
+        inicio = (local - timedelta(minutes=5)).strftime('%H:%M:%S')
+        fin = (local + timedelta(minutes=5)).strftime('%H:%M:%S')
+        intervalos = json.dumps([dict(consulta=5222, titulo='Prueba',
+                inicio=inicio, fin=fin, tipo_acceso='AMBAS')])
+        cur.execute('''INSERT INTO %s.giscedata_omie_siom_exclusion_observation
+            (estado, interpretacion, intervalos_json, fecha_consulta)
+            VALUES ('con_datos', 'valida', %%s,
+                clock_timestamp() AT TIME ZONE 'UTC')''' % self.schema,
+            (intervalos,))
+        cur.close()
+        with self.assertRaises(self.consultas.ConsultaExcluidaOMIE):
+            self.control.ejecutar_consulta(
+                self.business, 7, 5222,
+                lambda: self.fail('No debe llamar SOAP'))
+        cur = self.root.cursor()
+        cur.execute('SELECT count(*) FROM %s.giscedata_omie_siom_query_execution' %
+                    self.schema)
+        self.assertEqual(cur.fetchone()[0], 0)
+        cur.close()
+        # Modificar res.config tiene efecto en la proxima reserva, sin reinicio.
+        self._actualizar_config('siom_8100_apply', '0')
+        self.assertEqual(self.control.ejecutar_consulta(
+            self.business, 7, 5222, lambda: 'OK'), 'OK')
+
+    def test_8100_postgresql_snapshot_caducado_y_8100_puede_refrescar(self):
+        self._actualizar_config('siom_8100_apply', '1')
+        self._actualizar_config('siom_8100_max_age_seconds', '60')
+        cur = self.root.cursor()
+        cur.execute('''INSERT INTO %s.giscedata_omie_siom_exclusion_observation
+            (estado, interpretacion, intervalos_json, fecha_consulta)
+            VALUES ('con_datos', 'valida', '[]',
+                (clock_timestamp() AT TIME ZONE 'UTC') - interval '2 minutes')'''
+                    % self.schema)
+        cur.close()
+        with self.assertRaises(self.consultas.SinConfiguracionExclusion8100):
+            self.control.ejecutar_consulta(
+                self.business, 7, 5222,
+                lambda: self.fail('No debe llamar SOAP'),
+                refrescar_8100=lambda cr: False)
+        # La consulta 8100 debe poder actualizar el snapshot, aun caducado.
+        self.assertEqual(self.control.ejecutar_consulta(
+            self.business, 7, 8100, lambda: 'OK'), 'OK')
+
+    def test_8100_sin_observacion_refresca_una_vez_antes_de_soap(self):
+        self._actualizar_config('siom_8100_apply', '1')
+        refrescos, llamadas = [], []
+        def refrescar(cr):
+            refrescos.append(True)
+            cursor = self.root.cursor()
+            cursor.execute('''INSERT INTO %s.giscedata_omie_siom_exclusion_observation
+                (estado, interpretacion, intervalos_json, fecha_consulta)
+                VALUES ('con_datos', 'valida', %%s,
+                    clock_timestamp() AT TIME ZONE 'UTC')''' % self.schema,
+                (json.dumps([dict(consulta=7777, titulo='Otra consulta',
+                                 inicio='10:00:00', fin='10:15:00',
+                                 tipo_acceso='AMBAS')]),))
+            cursor.close()
+            return True
+        def llamada():
+            llamadas.append(True)
+            return {'Respuesta': []}
+        self.assertEqual(self.control.ejecutar_consulta(
+            self.business, 7, 5222, llamada,
+            refrescar_8100=refrescar, reintentos=0), {'Respuesta': []})
+        self.assertEqual(len(refrescos), 1)
+        self.assertEqual(len(llamadas), 1)
+        cursor = self.root.cursor()
+        cursor.execute('SELECT estado FROM %s.giscedata_omie_siom_query_execution '
+                       'WHERE consulta=5222' % self.schema)
+        self.assertEqual(cursor.fetchall(), [('respondida',)])
+        cursor.close()
+
+    def test_8100_sin_observacion_refresco_fallido_no_reserva_ni_soap(self):
+        self._actualizar_config('siom_8100_apply', '1')
+        refrescos = []
+        def refrescar(cr):
+            refrescos.append(True)
+            return False
+        with self.assertRaises(self.consultas.SinConfiguracionExclusion8100):
+            self.control.ejecutar_consulta(
+                self.business, 7, 5222,
+                lambda: self.fail('No debe enviar SOAP'),
+                refrescar_8100=refrescar)
+        self.assertEqual(len(refrescos), 1)
+        cursor = self.root.cursor()
+        cursor.execute('SELECT count(*) FROM %s.giscedata_omie_siom_query_execution '
+                       'WHERE consulta=5222' % self.schema)
+        self.assertEqual(cursor.fetchone()[0], 0)
+        cursor.close()
 
     def test_consulta_reserva_confirma_independientemente(self):
         cr = self.root.cursor()
@@ -342,6 +478,36 @@ class PostgreSQLIntegrationTests(unittest.TestCase):
         finally:
             a.close()
             b.close()
+
+    def test_migracion_estados_varchar16_a_varchar32(self):
+        # Reproducir ambas columnas legacy y ejecutar la migracion real.
+        con = psycopg2.connect(DSN, options='-c search_path=%s' % self.schema)
+        con.autocommit = True
+        cr = con.cursor()
+        try:
+            for tabla in ('giscedata_omie_siom_service_execution',
+                          'giscedata_omie_siom_query_execution'):
+                cr.execute('ALTER TABLE %s ALTER COLUMN estado TYPE varchar(16)' % tabla)
+            ruta = os.path.join(APP, 'migrations', '5.0.26.12',
+                                'post-0014_siom_estados_largos.py')
+            runpy.run_path(ruta)['up'](cr, '5.0.26.12')
+            cr.execute('''SELECT table_name, character_maximum_length
+                            FROM information_schema.columns
+                           WHERE table_schema = %s
+                             AND table_name IN (
+                                 'giscedata_omie_siom_service_execution',
+                                 'giscedata_omie_siom_query_execution')
+                             AND column_name = 'estado' ''', (self.schema,))
+            self.assertEqual(dict(cr.fetchall()), {
+                'giscedata_omie_siom_service_execution': 32,
+                'giscedata_omie_siom_query_execution': 32})
+            cr.execute("INSERT INTO giscedata_omie_siom_service_execution (estado) "
+                       "VALUES ('respondida_pendiente')")
+            cr.execute("INSERT INTO giscedata_omie_siom_query_execution (estado) "
+                       "VALUES ('rechazada_frecuencia'), ('rechazada_exclusion')")
+        finally:
+            cr.close()
+            con.close()
 
     def test_10d2_respuesta_sobrevive_rollback_y_se_comprueba_commit_real(self):
         # Simula un negocio que envia SOAP y pierde sus writes por rollback.
