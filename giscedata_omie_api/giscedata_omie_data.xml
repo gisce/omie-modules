@@ -4,14 +4,17 @@
         <record id="config_siom_8100_apply" model="res.config">
             <field name="name">siom_8100_apply</field>
             <field name="value">0</field>
+            <field name="description">Indica si s'apliquen o no les restriccions d'interval d'exclusió.</field>
         </record>
         <record id="config_siom_8100_timezone" model="res.config">
             <field name="name">siom_8100_timezone</field>
             <field name="value">UTC+01:00</field>
+            <field name="description">Indica zona horària d'OMIE.</field>
         </record>
         <record id="config_siom_8100_max_age_seconds" model="res.config">
             <field name="name">siom_8100_max_age_seconds</field>
             <field name="value">3600</field>
+            <field name="description">Temps màxim (en segons) d'antiguitat de les observacions dels intervals d'exclusió.</field>
         </record>
     </data>
 </openerp>
