@@ -550,6 +550,11 @@ class ServiceTests(unittest.TestCase):
         self.assertIn('giscedata_omie_api.siom.ofertas', servicios)
         self.assertIn('respondida_pendiente', servicios)
 
+    def test_estado_admite_nombre_largo(self):
+        tipo, args, kwargs = self.model._columns['estado']
+        self.assertEqual(tipo, 'selection')
+        self.assertGreaterEqual(kwargs.get('size', 0), len('respondida_pendiente'))
+
     def test_10d2_maximos_durables_visibles_sin_commit_del_negocio(self):
         self.model._datos_respuesta = lambda r: ('{}', 'RESP-12', '0')
         self.model.ejecutar_servicio(

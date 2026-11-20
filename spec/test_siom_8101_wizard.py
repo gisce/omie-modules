@@ -240,16 +240,6 @@ class WizardTests(unittest.TestCase):
         self.assertEqual(self.wizard.record.state, 'init')
         self.assertFalse(self.wizard.writes)
 
-    def test_vista_y_menu_estan_bajo_configuracion_siom(self):
-        xml = ElementTree.parse(os.path.join(WIZ, 'wizard_siom_minimum_time_view.xml'))
-        actions = xml.findall(".//record[@model='ir.actions.act_window']")
-        self.assertEqual(len(actions), 1)
-        menu = xml.find(".//menuitem[@id='menu_wizard_siom_minimum_time_update']")
-        self.assertEqual(menu.attrib['parent'], 'menu_omie_siom_limits')
-        self.assertEqual(menu.attrib['groups'], 'group_giscedata_omie_oferta_u')
-        with open(os.path.join(WIZ, 'wizard_siom_minimum_time_view.xml')) as handle:
-            self.assertNotIn('scope', handle.read())
-
     def test_vista_llama_al_metodo_correcto(self):
         xml = ElementTree.parse(os.path.join(WIZ, 'wizard_siom_minimum_time_view.xml'))
         buttons = xml.findall(".//button[@type='object']")

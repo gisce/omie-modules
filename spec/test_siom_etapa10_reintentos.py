@@ -44,6 +44,7 @@ class ReintentosTests(unittest.TestCase):
         self.business = _legacy.FakeBusinessCursor()
         self.model = self.module.GiscedataOmieSiomQueryExecution()
         self.model._nueva_conexion = lambda cr: self.db.cursor()
+        self.model.pool = _legacy.FakeConfigPool()
         self.model._sincronizar_8101_inicial = lambda cr, codigo: None
         self.soap_calls = 0
 

@@ -7,6 +7,10 @@
                   sequence="35"/>
 
         <!-- Tiempos mínimos -->
+        <menuitem id="menu_omie_siom_minimum_times" name="Tiempos Mínimos" parent="menu_omie_siom_limits"
+                  groups="group_giscedata_omie_oferta_r,group_giscedata_omie_oferta_w,group_giscedata_omie_oferta_u"
+                  sequence="1"/>
+
         <record id="view_siom_minimum_time_tree" model="ir.ui.view">
             <field name="name">giscedata.omie.siom.minimum.time.tree</field>
             <field name="model">giscedata.omie.siom.minimum.time</field>
@@ -43,8 +47,8 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
         </record>
-        <menuitem id="menu_siom_minimum_time" parent="menu_omie_siom_limits"
-                  action="action_siom_minimum_time" sequence="10"/>
+        <menuitem id="menu_siom_minimum_time" parent="menu_omie_siom_minimum_times"
+                  action="action_siom_minimum_time" sequence="1"/>
 
         <!-- Sincronización -->
         <record id="view_siom_minimum_time_sync_tree" model="ir.ui.view">
@@ -79,7 +83,7 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
         </record>
-        <menuitem id="menu_siom_minimum_time_sync" parent="menu_omie_siom_limits"
-                  action="action_siom_minimum_time_sync" sequence="20"/>
+        <menuitem id="menu_siom_minimum_time_sync" parent="menu_omie_siom_minimum_times"
+                  action="action_siom_minimum_time_sync" sequence="2"/>
     </data>
 </openerp>

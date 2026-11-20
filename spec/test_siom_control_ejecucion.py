@@ -14,6 +14,26 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 APP = os.path.join(ROOT, 'giscedata_omie_api')
 
 
+class FakeResConfig(object):
+    def __init__(self, valores=None):
+        self.valores = valores if valores is not None else {}
+        self.lecturas = []
+
+    def get(self, cr, uid, name, default=None):
+        self.lecturas.append((cr, uid, name))
+        return self.valores.get(name, default)
+
+
+class FakeConfigPool(object):
+    def __init__(self, valores=None):
+        self.conf = FakeResConfig(valores)
+
+    def get(self, name):
+        if name != 'res.config':
+            raise AssertionError('Modelo inesperado: %s' % name)
+        return self.conf
+
+
 class FakeFields(object):
     def __getattr__(self, name):
         return lambda *args, **kw: (name, args, kw)
@@ -179,6 +199,7 @@ class ControlTests(unittest.TestCase):
         self.business = FakeBusinessCursor()
         self.model = self.module.GiscedataOmieSiomQueryExecution()
         self.model._nueva_conexion = lambda cr: self.db.cursor()
+        self.model.pool = FakeConfigPool()
         # Los tests historicos se centran en la operacion, no en el bootstrap.
         self.model._sincronizar_8101_inicial = lambda cr, codigo: None
         self.soap_calls = 0
@@ -190,6 +211,11 @@ class ControlTests(unittest.TestCase):
     def ejecutar(self, codigo=5222, **kwargs):
         kwargs.setdefault('margen_ms', 0)  # La regresion legacy comprueba cadencia exacta sin margen.
         return self.model.ejecutar_consulta(self.business, 7, codigo, self.llamada, **kwargs)
+
+    def test_estado_consulta_soporta_rechazos_largos(self):
+        tipo, args, kwargs = self.model._columns['estado']
+        self.assertEqual(tipo, 'selection')
+        self.assertGreaterEqual(kwargs.get('size', 0), len('rechazada_frecuencia'))
 
     def test_ejecuta_y_devuelve_respuesta_original(self):
         self.db.limits[5222] = (10000, 20000)

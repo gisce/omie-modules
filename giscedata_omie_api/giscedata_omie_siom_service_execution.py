@@ -378,6 +378,31 @@ class GiscedataOmieSiomServiceExecution(osv.osv):
                            'Respuesta SOAP recibida; validar resultado funcional')
         return respuesta
 
+    def abrir_asistente_conciliacion(self, cr, uid, ids, context=None):
+        """Abrir el asistente desde el registro, tras comprobar autorizacion."""
+        if not ids or len(ids) != 1:
+            raise osv.except_osv('Error', _('Seleccione un unico envio SIOM.'))
+        permisos = self.pool.get('wizard.siom.minimum.time.update')
+        if not permisos._puede_actualizar(cr, uid, context=context):
+            raise osv.except_osv('Acceso denegado',
+                                 _('Solo OMIE Manager puede conciliar envios SIOM.'))
+        fila = self.read(cr, uid, ids[0], ['estado', 'servicio'], context=context)
+        if (fila['servicio'] not in SERVICIOS_OFERTAS or
+                fila['estado'] not in ('incierta', 'enviando', 'reservada',
+                                      'respondida_pendiente')):
+            raise osv.except_osv(
+                'Error', _('Este registro no admite conciliacion manual.'))
+        ctx = (context or {}).copy()
+        ctx.update({'default_intento_id': ids[0], 'active_id': ids[0],
+                    'active_model': self._name})
+        return {
+            'name': _('Conciliar envio SIOM'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'wizard.siom.service.reconcile',
+            'view_type': 'form', 'view_mode': 'form', 'target': 'new',
+            'context': ctx,
+        }
+
     def conciliar_envio(self, cr, uid, execution_id, justificacion,
                         proceso_terminado=False):
         """Conciliacion humana documentada, SIN consultar automaticamente OMIE.
@@ -457,7 +482,7 @@ class GiscedataOmieSiomServiceExecution(osv.osv):
             ('reconciliada', 'Conciliacion manual documentada'),
             # Compatibilidad con registros creados antes de esta version.
             ('reservada', 'Reserva antigua: resultado desconocido'),
-        ], 'Estado', required=True, readonly=True),
+        ], 'Estado', size=32, required=True, readonly=True),
         'detalle': fields.char('Diagnostico', size=256, readonly=True),
     }
 
