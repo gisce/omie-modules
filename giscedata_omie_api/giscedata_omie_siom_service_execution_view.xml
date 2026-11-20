@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <record id="view_siom_service_execution_tree" model="ir.ui.view">
+            <field name="name">giscedata.omie.siom.service.execution.tree</field>
+            <field name="model">giscedata.omie.siom.service.execution</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Servicios SIOM">
+                    <field name="servicio"/>
+                    <field name="oferta_id"/>
+                    <field name="usuario_id"/>
+                    <field name="fecha_intento"/>
+                    <field name="estado"/>
+                    <field name="id_mensaje_enviado"/>
+                    <field name="version_enviada"/>
+                    <field name="num_oferta_enviado"/>
+                    <field name="id_unidad"/>
+                    <field name="fecha_sesion"/>
+                    <field name="codigo_respuesta"/>
+                    <field name="fecha_fin"/>
+                    <field name="detalle"/>
+                </tree>
+            </field>
+        </record>
+        <record id="view_siom_service_execution_form" model="ir.ui.view">
+            <field name="name">giscedata.omie.siom.service.execution.form</field>
+            <field name="model">giscedata.omie.siom.service.execution</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Servicios SIOM">
+                    <field name="servicio"/>
+                    <field name="oferta_id"/>
+                    <field name="usuario_id"/>
+                    <field name="fecha_intento"/>
+                    <field name="estado"/>
+                    <field name="id_mensaje_enviado"/>
+                    <field name="version_enviada"/>
+                    <field name="num_oferta_enviado"/>
+                    <field name="id_unidad"/>
+                    <field name="fecha_sesion"/>
+                    <field name="codigo_respuesta"/>
+                    <field name="fecha_fin"/>
+                    <field name="detalle"/>
+                    <field name="id_respuesta"/>
+                    <field name="respuesta_json"/>
+                </form>
+            </field>
+        </record>
+        <record id="action_siom_service_execution" model="ir.actions.act_window">
+            <field name="name">Registro de servicios SIOM</field>
+            <field name="res_model">giscedata.omie.siom.service.execution</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+        <menuitem id="menu_siom_service_execution" parent="menu_omie_siom_limits"
+                            name="Registro de servicios SIOM" sequence="40"
+                            action="action_siom_service_execution" groups="group_giscedata_omie_oferta_u"/>
+    </data>
+</openerp>

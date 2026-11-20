@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
-from osv import osv, fields
 from omie import ClientOMIE
+from osv import osv, fields
 from zeep import helpers
+from tools.translate import _
 
 
 class GiscedataPermisosUsuario(osv.osv_memory):
 
     _name = 'giscedata.permisos.usuario'
-    _description = """Clase auxiliar para visualización de wizard"""
+    _description = _("""Clase auxiliar para visualización de wizard""")
 
     _columns = {
         'codigo': fields.char('Código', size=128),
@@ -23,22 +24,29 @@ GiscedataPermisosUsuario()
 class WizardConsultaDatosUsuario(osv.osv_memory):
 
     _name = 'wizard.consulta.datos.usuario'
-    _description = """Este servicio permite consultar los datos del Usuario"""
+    _description = _("""Este servicio permite consultar los datos del Usuario""")
 
     def consulta_datos_usuario(self, cursor, uid, ids, context=None):
         if context is None:
             context = {}
 
+        control = self.pool.get('giscedata.omie.siom.service.execution')
         permiso_usuario_obj = self.pool.get('giscedata.permisos.usuario')
+
         wiz_id = ids[0]
         ctx = context.copy()
         ctx.update({'prefetch': False})
-        wiz_brw = self.browse(cursor, uid, wiz_id, context=ctx)
+        wiz_brw = self.simple_browse(cursor, uid, wiz_id, context=ctx)
 
         client = ClientOMIE()
+
         try:
-            result = client.ServicioConsultaDatosUsuario()
+            result = control.ejecutar_servicio(
+                cursor, uid, 'ServicioConsultaDatosUsuario', lambda: client.ServicioConsultaDatosUsuario()
+            )
+
             res_serialized = helpers.serialize_object(result)
+
             write_vals_wiz = {
                 'cod_agente': res_serialized.get('IdAgente').get('CodAgente').get('v'),
                 'des_agente': res_serialized.get('IdAgente').get('DesAgente').get('v'),
@@ -51,19 +59,23 @@ class WizardConsultaDatosUsuario(osv.osv_memory):
                 'fecha_alta': res_serialized.get('DatosTarjeta').get('Validez').get('FechaAlta').get('v').strftime("%d-%m-%Y"),
                 'fecha_baja': res_serialized.get('DatosTarjeta').get('Validez').get('FechaBaja').get('v').strftime("%d-%m-%Y"),
             }
+
+            # La coma és necessària
             permiso_dicc = res_serialized.get('DatosTarjeta').get('Permisos').get('Permiso'),
+
             for permiso in permiso_dicc[0]:
                 create_vals_permiso = {
                     'codigo': permiso.get('cod'),
                     'perfil': permiso.get('perfil'),
-                    'wiz_id': wiz_id,
+                    'wiz_id': wiz_id
                 }
                 permiso_usuario_obj.create(cursor, uid, create_vals_permiso, context=context)
+
             write_vals_wiz.update({'state': 'end'})
+
             wiz_brw.write(write_vals_wiz)
         except Exception as e:
             wiz_brw.write({'state': 'error'})
-
 
     _columns = {
         'state': fields.selection([('init', 'init'), ('end', 'end'), ('error', 'error')], 'Estat'),

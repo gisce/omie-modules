@@ -710,12 +710,21 @@
                             <field name="es_divisible_100" colspan="2"/>
                             <field name="es_retirable_100" colspan="2"/>
                         </group>
-                        <button icon="gtk-ok" name="llenar_horas_oferta" string="Llenar horas" type="object" colspan="12"/>
-                        <button icon="gtk-cancel" special="cancel" string="Cancelar" type="object" colspan="12"/>
+                        <group col="10">
+                            <label colspan="6"/>
+                            <button icon="gtk-cancel" special="cancel" string="Cancelar" type="object"
+                                    colspan="2" danger="1"/>
+                            <button icon="gtk-ok" name="llenar_horas_oferta" string="Llenar horas" type="object"
+                                    colspan="2" primary="1"/>
+                        </group>
                     </group>
                     <group col="4" attrs="{'invisible': [('state', '!=', 'end')]}">
                         <label string="Horas modificados."/>
-                        <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" colspan="4"/>
+                        <group col="10">
+                            <label colspan="8"/>
+                            <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" colspan="2"
+                                    danger="1" primary="1"/>
+                        </group>
                     </group>
                 </form>
             </field>

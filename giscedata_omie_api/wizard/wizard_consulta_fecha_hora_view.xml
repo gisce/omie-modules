@@ -10,16 +10,27 @@
                     <field name="state" invisible="1"/>
                     <group col="10" attrs="{'invisible': [('state', '!=', 'init')]}">
                         <label string="Consultar la Fecha y Hora Oficial del Mercado en Tiempo Real." colspan="10"/>
-                        <button icon="gtk-cancel" special="cancel" string="Cancelar" type="object" colspan="5"/>
-				        <button icon="gtk-ok" name="consulta_fecha_hora" string="Consultar Fecha y Hora" type="object" colspan="5"/>
+                        <group col="10">
+                            <label colspan="6"/>
+                            <button icon="gtk-cancel" special="cancel" string="Cancelar" type="object"
+                                    colspan="2" danger="1"/>
+                            <button icon="gtk-ok" name="consulta_fecha_hora" string="Consultar Fecha y Hora"
+                                    type="object" colspan="2" primary="1"/>
+                        </group>
                     </group>
                     <group col="4" attrs="{'invisible': [('state', '!=', 'end')]}">
                         <field name="fecha_hora" colspan="4"/>
-                        <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" colspan="4"/>
+                        <group col="10">
+                            <label colspan="8"/>
+                            <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" danger="1"
+                                    primary="1" colspan="2"/>
+                        </group>
                     </group>
-                    <group col="4" attrs="{'invisible': [('state', '!=', 'error')]}">
-                        <label string="No se ha realizado correctamente la conexión con OMIE."/>
-                        <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" colspan="4"/>
+                    <group col="10" attrs="{'invisible': [('state', '!=', 'error')]}">
+                        <label string="No se ha realizado correctamente la conexión con OMIE." colspan="10"/>
+                        <label colspan="8"/>
+                        <button icon="gtk-cancel" special="cancel" string="Cerrar" type="object" colspan="2"
+                                primary="1" danger="1"/>
                     </group>
                 </form>
             </field>

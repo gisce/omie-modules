@@ -2,19 +2,15 @@
 from __future__ import absolute_import
 from datetime import datetime, timedelta
 from giscedata_omie_api.giscedata_omie_oferta import UNIDAD_MEDIDA
+from giscedata_omie_api.utils import _OMIE_INDICATORS, _NUM_RONDA
 from osv import osv, fields
 from tools.translate import _
 
 
-_OMIE_INDICATORS = [('pbc', 'Programa Base de Casación (PBC)'),
-                    ('phfc', 'Programa Horario Final Continuo (PHFC)')]
-_NUM_RONDA = [(str(x+1), str(x+1)) for x in range(24)]
-_WIZARD_STATES = ('init', 'init'), ('error', 'error'), ('end', 'end')
-
 class WizardConsultaOMIE(osv.osv_memory):
 
     _name = 'wizard.consulta.omie'
-    _description = """Datos de la consulta 4144 de la API de Omie en tiempo real"""
+    _description = _("""Datos de la consulta 4144 de la API de Omie en tiempo real""")
 
     def consultar_en_omie(self, cursor, uid, ids, context=None):
         if context is None:
@@ -25,9 +21,9 @@ class WizardConsultaOMIE(osv.osv_memory):
         wiz = self.simple_browse(cursor, uid, wiz_id, context=ctx)
 
         if wiz.indicador_omie == 'phfc':
-            return self.get_phfc_casation(cursor, uid, ids, context=context)
+            self.get_phfc_casation(cursor, uid, ids, context=context)
         elif wiz.indicador_omie == 'pbc':
-            return self.get_pbc_casation(cursor, uid, ids, context=context)
+            self.get_pbc_casation(cursor, uid, ids, context=context)
 
         return True
 
@@ -124,7 +120,8 @@ class WizardConsultaOMIE(osv.osv_memory):
         'fecha_ronda': fields.date('Fecha de ronda', required=True),
         'num_ronda': fields.selection(_NUM_RONDA, 'Número de ronda', required=True),
         'uni_medida': fields.selection(UNIDAD_MEDIDA, 'Unidad de Medida', required=True),
-        'state': fields.selection(_WIZARD_STATES, 'Estado', readonly=True),
+        'state': fields.selection([('init', 'init'), ('error', 'error'), ('end', 'end')],
+                                  'Estado', readonly=True),
         'info': fields.text('Información', readonly=True)
     }
 

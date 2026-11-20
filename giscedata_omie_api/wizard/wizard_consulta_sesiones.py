@@ -1,29 +1,38 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
+from giscedata_omie_api.giscedata_omie_oferta import SI_NO
 from osv import osv, fields
 from omie import ClientOMIE
 from zeep import helpers
-from giscedata_omie_api.giscedata_omie_oferta import SI_NO
+from tools.translate import _
 
 
 class WizardConsultaSesiones(osv.osv_memory):
 
     _name = 'wizard.consulta.sesiones'
-    _description = """Este servicio permite consultar la fecha y hora oficial del Mercado"""
+    _description = _("""Este servicio permite consultar la fecha y hora oficial del Mercado""")
 
     def consulta_sesiones(self, cursor, uid, ids, context=None):
         if context is None:
             context = {}
 
+        control = self.pool.get('giscedata.omie.siom.service.execution')
+
         wiz_id = ids[0]
         ctx = context.copy()
         ctx.update({'prefetch': False})
-        wiz_brw = self.browse(cursor, uid, wiz_id, context=ctx)
+        wiz_brw = self.simple_browse(cursor, uid, wiz_id, context=ctx)
 
         client = ClientOMIE()
-        result = client.ServicioConsultaMercados()
+
+        result = control.ejecutar_servicio(
+            cursor, uid, 'ServicioConsultaMercados', lambda: client.ServicioConsultaMercados()
+        )
+
         res_serialized = helpers.serialize_object(result)
+
         res = self.crear_sesion(cursor, uid, wiz_id, res_serialized, context=context)
+
         if res:
             wiz_brw.write({'state': 'end'})
         else:
@@ -134,6 +143,7 @@ class WizardConsultaSesiones(osv.osv_memory):
                     )
 
         self.write(cursor, uid, [wiz_id], create_vals, context=context)
+
         return True
 
     _columns = {
