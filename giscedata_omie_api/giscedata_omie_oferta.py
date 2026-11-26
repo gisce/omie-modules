@@ -476,6 +476,8 @@ class GiscedataOmieOfertaExtend(osv.osv):
                 ('sustituida', '=', False),
                 ('state', '=', 'enviada'),
             ]
+            if tipo_mercado == 'MI':
+                search_vals += [('clase_oferta', '=', oferta_dicc.get('ClaseOferta'))]
             oferta_ids = oferta_obj.search(cursor, uid, search_vals, context=context)
             if oferta_ids:
                 # Cogemos la versión mas grande de las ofertas encontradas
